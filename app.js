@@ -6,6 +6,7 @@ import {
 } from "./trust.mjs";
 import { projects, keywordProjectSuggestions } from "./lens/projects.mjs";
 import { skillTerms } from "./lens/skills.mjs";
+import { buildStudentPathway } from "./lens/student-pathway.mjs";
 
 const examples = {
   transcript:
@@ -125,6 +126,7 @@ async function initialize() {
       await writeState("credentials", credentials);
     } else credentials = Array.isArray(stored) ? stored : [];
     await renderCredentials();
+    renderLens();
   } catch (error) {
     document.querySelector(".demo-notice span").textContent =
       `Credential storage or signing is unavailable: ${error.message}. Use a supported browser on localhost or HTTPS.`;
@@ -153,7 +155,7 @@ function showView(name) {
 }
 
 function projectCard(project) {
-  return `<article class="project-card"><span class="project-icon ${project.color}">${icon(project.icon)}</span><div class="project-body"><div class="project-meta">${escapeHTML(project.organization.toUpperCase())} <span>·</span> ${project.time}</div><h3>${escapeHTML(project.title)}</h3><p>${escapeHTML(project.description)}</p><div class="skills-row">${project.skills.map((skill) => `<span class="skill-chip">${escapeHTML(skill)}</span>`).join("")}</div></div><button class="project-arrow" type="button" data-project="${escapeHTML(project.title)}" aria-label="Give a vouch for ${escapeHTML(project.title)}" title="Give a vouch">${icon("arrow-up-right")}</button></article>`;
+  return `<article class="project-card" data-project-card="${escapeHTML(project.id)}" tabindex="-1"><span class="project-icon ${project.color}">${icon(project.icon)}</span><div class="project-body"><div class="project-meta">${escapeHTML(project.organization.toUpperCase())} <span>·</span> ${project.time}</div><h3>${escapeHTML(project.title)}</h3><p>${escapeHTML(project.description)}</p><div class="skills-row">${project.skills.map((skill) => `<span class="skill-chip">${escapeHTML(skill)}</span>`).join("")}</div></div><button class="project-arrow" type="button" data-project="${escapeHTML(project.title)}" aria-label="Give a vouch for ${escapeHTML(project.title)}" title="Give a vouch">${icon("arrow-up-right")}</button></article>`;
 }
 
 function renderProjects() {
@@ -236,10 +238,14 @@ async function openCredential(index) {
 // Lens state: who is looking, and the last result so the toggle can re-render without a new API call.
 let lensAudience = "employer";
 let lastLens; // { mode: "ai", data } | { mode: "offline", input }
+let lensRequest = 0;
+let lensRender = 0;
 const DISCLAIMER_AI =
   "AI extracts requirements and proposes matches; every quote is checked word-for-word against a signed credential before it's shown. Gaps are never filled by AI. Not a hiring recommendation.";
 const DISCLAIMER_OFFLINE =
   "The AI lens is unavailable, so simple keyword rules matched requirements to signed credentials. Review every source and gap yourself. Not a hiring recommendation.";
+const DISCLAIMER_STUDENT =
+  "Student view uses keyword hints and this browser's signed demo evidence, not an assessment of your ability or a hiring recommendation. Project ideas are fictional. Review the full posting, including qualifications we may miss.";
 
 function suggestionMarkup(kind, suggestions, keywordBased = false) {
   if (lensAudience !== "student") return "";
@@ -274,13 +280,33 @@ function keywordSuggestions(line) {
     .map(({ project }) => ({ ...project, why: `Practises ${project.skills.filter((s) => wanted.includes(s)).join(" and ").toLowerCase()}.` }));
 }
 
+async function renderStudentPathway(input, target, renderId) {
+  const validCredentials = await verifiedCredentials();
+  if (renderId !== lensRender || lensAudience !== "student") return;
+  const skills = buildStudentPathway(input, validCredentials);
+  const supported = skills.filter((skill) => skill.evidence.length);
+  const gaps = skills.filter((skill) => !skill.evidence.length);
+  const evidenceCards = supported.map((skill) =>
+    `<article class="pathway-card"><h4>${escapeHTML(skill.name)}</h4><p class="pathway-context">Posting mentions: “${escapeHTML(skill.context)}”</p>${skill.evidence.map((item) => `<p class="result-desc">Demo evidence · ${escapeHTML(item.skill)}: “${escapeHTML(item.quote)}”</p><button class="text-link" type="button" data-credential="${item.index}">View signed evidence ${icon("arrow-up-right")}</button>`).join("")}</article>`,
+  ).join("");
+  const gapCards = gaps.map((skill) =>
+    `<article class="pathway-card"><h4>${escapeHTML(skill.name)}</h4><p class="pathway-context">Posting mentions: “${escapeHTML(skill.context)}”</p><p class="result-desc">No matching demo evidence yet. This does not mean you lack this skill.</p>${skill.projects.length ? `<div class="pathway-projects"><strong>Fictional practice ideas</strong>${skill.projects.map((project) => `<div class="pathway-project"><div><strong>${escapeHTML(project.title)}</strong><span>${escapeHTML(project.organization)} · ${escapeHTML(project.time)}</span><p>${escapeHTML(project.description)}</p></div><button class="text-link" type="button" data-explore-project="${escapeHTML(project.id)}">View project ${icon("arrow-up-right")}</button></div>`).join("")}</div>` : `<p class="result-desc">No related demo project yet. Consider another way to practise or document this skill.</p>`}</article>`,
+  ).join("");
+  target.className = "";
+  target.innerHTML = `<div class="pathway-intro" role="status"><strong>Your skill pathway</strong><p>We found ${skills.length} skill ${skills.length === 1 ? "hint" : "hints"} in this text: ${supported.length} with related demo evidence and ${gaps.length} to explore. Keywords can miss context or requirements.</p></div>${skills.length ? `<section class="pathway-section"><h3>Evidence you have <span>${supported.length}</span></h3>${evidenceCards || '<p class="pathway-empty">No related signed demo evidence found for these skills yet.</p>'}</section><section class="pathway-section"><h3>Skills to explore <span>${gaps.length}</span></h3>${gapCards || '<p class="pathway-empty">No evidence gaps among the skills we recognized. Review the full posting for anything missed.</p>'}</section>` : `<p class="pathway-empty">No recognizable skill keywords found. Try the full job posting or review its requirements yourself.</p>`}<p class="pathway-note">Projects are fictional practice ideas, not live opportunities. Only create a demo vouch for work you want to simulate; completing a project here does not create evidence or guarantee a job.</p>`;
+  refreshIcons();
+  announce(`Student pathway updated: ${supported.length} skills with related evidence and ${gaps.length} to explore.`);
+}
+
 function renderLens() {
   if (!lastLens) return;
+  const renderId = ++lensRender;
   const target = document.querySelector("#lens-results");
   document.querySelector("#lens-disclaimer-text").textContent =
-    lastLens.mode === "ai" ? DISCLAIMER_AI : DISCLAIMER_OFFLINE;
-  if (lastLens.mode === "ai") renderAiLens(lastLens.data, target);
-  else keywordLens(lastLens.input, target);
+    lensAudience === "student" ? DISCLAIMER_STUDENT : lastLens.mode === "ai" ? DISCLAIMER_AI : DISCLAIMER_OFFLINE;
+  if (lensAudience === "student") renderStudentPathway(lastLens.input, target, renderId);
+  else if (lastLens.mode === "ai") renderAiLens(lastLens.data, target);
+  else keywordLens(lastLens.input, target, renderId);
   refreshIcons();
 }
 
@@ -313,10 +339,15 @@ function renderAiLens(data, target) {
 }
 
 async function analyzeJob() {
+  const requestId = ++lensRequest;
+  ++lensRender;
+  lastLens = undefined;
   const input = document.querySelector("#job-description").value.trim();
   const target = document.querySelector("#lens-results");
   const button = document.querySelector("#analyze-job");
   if (!input) {
+    button.disabled = false;
+    target.removeAttribute("aria-busy");
     target.className = "lens-empty";
     target.innerHTML =
       "<h2>Add a job posting first.</h2><p>Paste the whole posting, or pick an example.</p>";
@@ -343,24 +374,28 @@ async function analyzeJob() {
   } catch {
     data = { fallback: true };
   } finally {
-    button.disabled = false;
-    target.removeAttribute("aria-busy");
+    if (requestId === lensRequest) {
+      button.disabled = false;
+      target.removeAttribute("aria-busy");
+    }
   }
+  if (requestId !== lensRequest) return;
   lastLens =
     !data.fallback && Array.isArray(data.requirements)
-      ? { mode: "ai", data }
+      ? { mode: "ai", data, input }
       : { mode: "offline", input };
   renderLens();
 }
 
 // Offline fallback: the original regex lens, clearly labelled.
-async function keywordLens(input, target) {
+async function keywordLens(input, target, renderId) {
   const lines = input
     .split(/\n+|(?<=[.!?])\s+/)
     .map((line) => line.replace(/^\s*[-•*]\s*/, "").trim())
     .filter((line) => line.length > 3)
     .slice(0, 20);
   const validCredentials = await verifiedCredentials();
+  if (renderId !== lensRender || lensAudience !== "employer") return;
   target.className = "";
   target.innerHTML = `<div class="lens-summary offline" role="status"><strong>Offline keyword matching</strong> <span class="lens-source">The AI lens is unavailable, so this uses simple keyword rules. Results are rougher.</span></div>` + lines
     .map((line) => {
@@ -388,6 +423,13 @@ document.addEventListener("click", (event) => {
   if (projectButton) {
     document.querySelector("#vouch-task").value = projectButton.dataset.project;
     showView("vouch");
+  }
+  const exploreButton = event.target.closest("[data-explore-project]");
+  if (exploreButton) {
+    showView("projects");
+    const project = [...document.querySelectorAll("#all-projects [data-project-card]")].find((card) => card.dataset.projectCard === exploreButton.dataset.exploreProject);
+    project?.scrollIntoView({ block: "center" });
+    project?.focus({ preventScroll: true });
   }
   const credentialButton = event.target.closest("[data-credential]");
   if (credentialButton)
@@ -471,6 +513,16 @@ document.querySelector("#job-select").addEventListener("change", (event) => {
     `${job.title} — ${job.company}, ${job.location}\n\n${job.description}`;
   source.innerHTML = `Live posting via Adzuna${job.snippet ? " (Adzuna shares a short excerpt; paste the full text for a fuller check)" : ""}. ${job.url ? `<a href="${escapeHTML(job.url)}" target="_blank" rel="noopener noreferrer">Open the full posting</a>` : ""}`;
   analyzeJob();
+});
+document.querySelector("#job-description").addEventListener("input", () => {
+  ++lensRequest;
+  ++lensRender;
+  lastLens = undefined;
+  const target = document.querySelector("#lens-results");
+  target.className = "lens-empty";
+  target.removeAttribute("aria-busy");
+  target.innerHTML = "<h2>Posting changed.</h2><p>Select Find evidence to update your results.</p>";
+  document.querySelector("#analyze-job").disabled = false;
 });
 document.querySelector("#analyze-job").addEventListener("click", analyzeJob);
 
@@ -576,6 +628,7 @@ document
       document.querySelector("#approval-dialog").close();
       document.querySelector("#vouch-form").reset();
       await renderCredentials();
+      renderLens();
       showView("credentials");
       announce("Your demo credential was signed and saved on this device.");
     } catch (failure) {

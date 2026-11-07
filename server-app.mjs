@@ -20,6 +20,7 @@ const STATIC_FILES = {
   '/lens/lens.css': 'lens/lens.css',
   '/lens/projects.mjs': 'lens/projects.mjs',
   '/lens/skills.mjs': 'lens/skills.mjs',
+  '/lens/student-pathway.mjs': 'lens/student-pathway.mjs',
   '/verification/verification-ui.mjs': 'verification/verification-ui.mjs',
   '/vendor/auth0.js': 'node_modules/@auth0/auth0-spa-js/dist/auth0-spa-js.production.js',
 };

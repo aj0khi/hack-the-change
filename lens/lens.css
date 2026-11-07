@@ -238,6 +238,63 @@
   color: #2f5e45;
 }
 
+.pathway-intro {
+  margin: 20px 0 16px;
+  padding: 16px;
+  border: 1px solid #ded5eb;
+  border-radius: 12px;
+  background: #f5f1fa;
+  color: #393047;
+}
+.pathway-intro strong { font-size: 15px; }
+.pathway-intro p,
+.pathway-empty,
+.pathway-note,
+.pathway-context {
+  margin: 6px 0 0;
+  color: #655b70;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pathway-section { margin: 22px 0; }
+.pathway-section h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink);
+  font-size: 15px;
+}
+.pathway-section h3 span {
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: #eee8f5;
+  color: #51425e;
+  font-size: 12px;
+}
+.pathway-card {
+  margin-top: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+.pathway-card h4 { margin: 0; color: var(--ink); font-size: 14px; }
+#lens .pathway-card .result-desc { margin: 10px 0 4px; }
+.pathway-card .text-link { margin-top: 6px; }
+.pathway-projects {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 9px;
+  background: #f8f5fb;
+  color: #51425e;
+  font-size: 13px;
+}
+.pathway-project { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e6deed; }
+.pathway-project span { display: block; color: #655b70; font-size: 12px; }
+.pathway-project p { margin: 5px 0; color: #655b70; line-height: 1.5; }
+.pathway-note { border-top: 1px solid var(--line); padding-top: 14px; }
+
 /* Lens accessibility pass: readable sizes and at least 4.5:1 text contrast on white. */
 #lens .card-label {
   font-size: 12px;
