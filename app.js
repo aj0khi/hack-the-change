@@ -147,7 +147,7 @@ function showView(name) {
   });
   document.querySelector("#breadcrumb").textContent =
     viewNames[name].toUpperCase();
-  document.title = `${viewNames[name]} | Vouch YYC`;
+  document.title = `${viewNames[name]} | Proofly`;
   if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
   window.scrollTo({ top: 0, behavior: "instant" });
 }

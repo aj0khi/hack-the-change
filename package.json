@@ -1,10 +1,13 @@
 {
-  "name": "vouch-yyc",
+  "name": "proofly",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.9.0"
+  },
   "scripts": {
-    "start": "node server.mjs",
+    "start": "node --env-file-if-exists=.env server.mjs",
     "test": "node --test *.test.mjs"
   },
   "dependencies": {

@@ -78,6 +78,7 @@ export function createApp({ config, store, authenticate, getUserInfo, stripe, ba
     auth0ClientId: config.auth0ClientId || null,
     auth0Audience: config.auth0Audience || null,
   }));
+  app.get('/healthz', (_request, response) => response.json({ status: 'ok' }));
 
   app.post('/api/badgr/assertion', async (request, response) => {
     try {
@@ -176,6 +177,7 @@ export function createApp({ config, store, authenticate, getUserInfo, stripe, ba
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { process.loadEnvFile(join(root, '.env')); } catch { /* No .env: every integration stays off. */ }
   const port = Number(process.env.PORT || 8766);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer between 1 and 65535.');
   const appOrigin = process.env.APP_ORIGIN || `http://localhost:${port}`;
   const parsedOrigin = new URL(appOrigin);
   if (parsedOrigin.origin !== appOrigin || !(parsedOrigin.protocol === 'https:' || (parsedOrigin.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsedOrigin.hostname)))) throw new Error('APP_ORIGIN must be an HTTPS origin or a localhost HTTP origin.');

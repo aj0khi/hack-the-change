@@ -1,6 +1,6 @@
-# Vouch YYC
+# Proofly
 
-Vouch YYC is a Prompt 2 prototype exploring how community work can become evidence of job-relevant skills. It includes a student dashboard, example projects, a community vouch form, simulated coordinator review, signed credentials, and an employer lens.
+Proofly is a Prompt 2 prototype exploring how community work can become evidence of job-relevant skills. It includes a student dashboard, example projects, a community vouch form, simulated coordinator review, signed credentials, and an employer lens.
 
 ## Team Coordination
 
@@ -38,14 +38,40 @@ Each person and their AI agents should update their own section when starting, c
 
 ## Run
 
-Install the dependencies and start the local verification server (Node.js 22.23 or later):
+Use Node.js 22.9 or later. Install the dependencies, copy `.env.example` to `.env` if you want to configure providers locally, and start the server:
 
 ```sh
-npm install
+npm ci
+cp -n .env.example .env
 npm start
 ```
 
-Visit `http://localhost:8766/` in a recent browser with IndexedDB and Ed25519 Web Crypto support. A secure context (localhost or HTTPS) is required. The fictional demo works without an account or API key. Fonts, icons, and the Unsplash image load from third parties.
+`npm start` loads `.env` when present; environment variables already set by the host take precedence. Visit `http://localhost:8766/` in a recent browser with IndexedDB and Ed25519 Web Crypto support. A secure context (localhost or HTTPS) is required. The fictional demo works without an account or API key. Fonts, icons, and the Unsplash image load from third parties.
+
+## Deploy to Hostinger
+
+This app is a Node.js/Express web app, not a static-only site. Hostinger managed Node.js hosting is available on eligible plans; confirm that your plan includes Node.js applications before deploying. Hostinger's [Node.js deployment guide](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/) covers the current hPanel flow.
+
+1. Push this repository to GitHub and connect it from **hPanel → Websites → Manage → Developer → Node.js** (the exact menu labels can vary). Import `aj0khi/hack-the-change` from the `main` branch.
+2. Select Node.js 22.x or newer. Use the repository root as the application root, `npm ci` as the install command, and `npm start` as the start command. No build command is required. The app binds to `0.0.0.0` and uses the `PORT` supplied by the host.
+3. Assign the temporary domain in hPanel and wait for HTTPS to be enabled. In the app's environment-variable settings, set `APP_ORIGIN` to the exact HTTPS origin, for example `https://your-temporary-domain` (no trailing slash). Do not set `PORT` yourself if hPanel supplies it.
+4. Add these variables in hPanel; do not commit them to GitHub:
+
+   | Variable | Value |
+   | --- | --- |
+   | `APP_ORIGIN` | Your exact temporary-domain HTTPS origin |
+   | `AUTH0_DOMAIN` | Your Auth0 tenant hostname, without `https://` |
+   | `AUTH0_CLIENT_ID` | Client ID for the **Proofly** Auth0 SPA |
+   | `AUTH0_AUDIENCE` | Exact Identifier of your Auth0 API |
+   | `STRIPE_SECRET_KEY` | Optional; use a Stripe test key for a demo, or leave unset |
+   | `VERIFICATION_DB` | Optional; a writable persistent path if your plan provides one |
+
+5. In Auth0, add `https://your-temporary-domain/` to **Allowed Callback URLs** and **Allowed Logout URLs**, and `https://your-temporary-domain` to **Allowed Web Origins**. Keep the existing API Identifier as `AUTH0_AUDIENCE`; it does not need to be your website domain.
+6. Save the variables and redeploy/restart the app. Check `https://your-temporary-domain/healthz` returns `{"status":"ok"}`, then open the site and test the demo and sign-in.
+
+For local development, `.env` is ignored by Git; `.env.example` contains placeholders only. Never put Stripe secret keys or other credentials in `.env.example`, source files, screenshots, or commits. Hostinger's [environment-variable guide](https://docs.hostinger.com/node.js/environment-variables) explains setting values through hPanel.
+
+The local SQLite database is not a production database. If you enable account verification, use a persistent writable database path only for a temporary prototype, and be aware that data can be lost when a hosting plan replaces or resets application files. The current identity and organization verification flows are not production-ready; see [Boundaries](#boundaries) before collecting real identity information.
 
 ## Employer Lens Setup (Gemini + Adzuna)
 
@@ -59,9 +85,11 @@ Add `GEMINI_API_KEY`, `GEMINI_MODEL`, `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` to `.
 
 ## Account Verification Setup
 
-Account verification remains disabled until hosted providers are configured. Create an Auth0 Single Page Application and an Auth0 API, enable email verification, and add `http://localhost:8766/` to the application's allowed callback URLs, logout URLs, and web origins. Set the API identifier as the audience. Activate Stripe Identity in a Stripe account. Copy `.env.example` to `.env`, configure the values locally without committing secrets, and start with `node --env-file=.env server.mjs`.
+Account verification remains disabled until hosted providers are configured. Create an Auth0 Single Page Application and an Auth0 API, enable email verification, and add `http://localhost:8766/` to the application's allowed callback URLs and logout URLs; add `http://localhost:8766` to web origins. Set the API identifier as the audience. Activate Stripe Identity in a Stripe account. Copy `.env.example` to `.env`, configure the values locally without committing secrets, and run `npm start`.
 
-The account page uses Auth0 sign-in and checks the account's email verification with Auth0. Stripe hosts the ID and selfie check; Vouch stores only its session ID and status, not licence images or numbers. The server checks that each session belongs to the authenticated user and uses a document plus matching selfie. Stripe test-mode results are explicitly marked test-only. Identity session attempts are limited per account and requests are rate limited per server process.
+The account page uses Auth0 sign-in and checks the account's email verification with Auth0. Stripe hosts the ID and selfie check; Proofly stores only its session ID and status, not licence images or numbers. The server checks that each session belongs to the authenticated user and uses a document plus matching selfie. Stripe test-mode results are explicitly marked test-only. Identity session attempts are limited per account and requests are rate limited per server process.
+
+The Proofly product name does not need to match your Auth0 API audience. Keep `AUTH0_AUDIENCE` set to the exact identifier shown for your existing Auth0 API; changing the product branding does not require changing that identifier.
 
 Stripe currently advertises the first 50 Identity verifications free, followed by CA$2 per completed document-and-selfie check in Canada. Confirm eligibility and current pricing with [Stripe](https://stripe.com/en-ca/identity#pricing) before using live mode. Test mode does not verify a real identity. No free alternative providing equivalent government-ID checks has been integrated.
 
