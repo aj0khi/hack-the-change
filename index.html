@@ -1,71 +1,589 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f6f7f3">
-  <title>Good Neighbour | Find your next little connection</title>
-  <link rel="icon" href="data:,">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script defer src="app.js"></script>
-</head>
-<body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <a class="brand" href="#discover" aria-label="Good Neighbour home">
-        <span class="brand-mark" aria-hidden="true"><i data-lucide="heart-handshake"></i></span>
-        <span>good<span class="brand-accent">neighbour</span><small>CALGARY, AB</small></span>
-      </a>
-      <div class="sidebar-label">YOUR SPACE</div>
-      <nav class="navigation" aria-label="Main navigation">
-        <a class="nav-link active" href="#discover"><i data-lucide="compass" aria-hidden="true"></i> Discover <i class="nav-arrow" data-lucide="arrow-up-right" aria-hidden="true"></i></a>
-        <a class="nav-link" href="#my-plan"><i data-lucide="bookmark" aria-hidden="true"></i> My little plan <span class="nav-count" data-saved-count>0</span></a>
-        <a class="nav-link" href="#support"><i data-lucide="life-buoy" aria-hidden="true"></i> Find support</a>
-      </nav>
-      <div class="sidebar-bottom">
-        <div class="sidebar-quote"><span class="quote-star">✳</span><p>A little connection<br>goes a long way.</p><span>MADE FOR CALGARY</span></div>
-        <p class="sidebar-note"><i data-lucide="lock-keyhole" aria-hidden="true"></i> Your plan stays on this device.</p>
-      </div>
-    </aside>
-
-    <main id="main">
-      <header class="topbar"><span><span class="location-dot"></span> YOUR COMMUNITY, A LITTLE CLOSER</span><a href="#support">Need support? <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></header>
-      <div class="content" id="discover">
-        <div class="welcome-line"><span>GOOD TO SEE YOU HERE</span><span>CALGARY, ALBERTA <i data-lucide="map-pin" aria-hidden="true"></i></span></div>
-        <section class="intro" aria-labelledby="page-title">
-          <div class="intro-copy"><div class="eyebrow"><span></span> A LITTLE MORE TOGETHER</div><h1 id="page-title">Find your people,<br><em>at your own pace.</em></h1><p>Connection doesn't have to be a big leap. Find one small way to feel more at home in your community.</p><a class="button button-dark" href="#explore">Explore connections <i data-lucide="arrow-down-right" aria-hidden="true"></i></a></div>
-          <div class="intro-image"><img src="https://www.calgarylibrary.ca/assets/events-and-programs/events/Side-by-side-block/720x560_digital_seniors-drop-in-social-club__ScaleMaxWidthWzE4MDBd.jpg" alt=""><div class="image-label"><span class="image-label-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span>GOOD THINGS HAPPEN<br><strong>when we show up.</strong></span></div></div>
-        </section>
-
-        <section class="explore-section" id="explore" aria-labelledby="explore-title">
-          <div class="section-heading"><div><div class="eyebrow"><span></span> FIND YOUR FIRST STEP</div><h2 id="explore-title">What feels right today?</h2><p>No pressure, no perfect plan. Just start where you are.</p></div><div class="heading-side">A LITTLE SOMETHING<br><strong>for everyone <span>↙</span></strong></div></div>
-          <div class="filters" role="group" aria-label="Filter connections">
-            <button type="button" class="filter active" data-filter="all" aria-pressed="true">All ideas <span>✳</span></button>
-            <button type="button" class="filter" data-filter="meet" aria-pressed="false">Meet people</button>
-            <button type="button" class="filter" data-filter="learn" aria-pressed="false">Learn together</button>
-            <button type="button" class="filter" data-filter="support" aria-pressed="false">Find support</button>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f7f5" />
+    <title>Vouch YYC — Skills have a story</title>
+    <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script
+      defer
+      src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"
+    ></script>
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#overview" aria-label="Vouch YYC home"
+          ><span class="brand-mark">v<span>.</span></span
+          ><span class="brand-name"
+            >vouch<span>yyc</span><small>GOOD WORK GOES FURTHER</small></span
+          ></a
+        >
+        <div class="workspace-label">WORKSPACE <span>01</span></div>
+        <nav class="navigation" aria-label="Workspace">
+          <button class="nav-link active" data-view="overview" type="button">
+            <i data-lucide="layout-grid"></i> Overview
+          </button>
+          <button class="nav-link" data-view="projects" type="button">
+            <i data-lucide="compass"></i> Explore projects
+          </button>
+          <button class="nav-link" data-view="credentials" type="button">
+            <i data-lucide="badge-check"></i> My credentials
+            <span class="nav-count" data-count>0</span>
+          </button>
+          <div class="nav-divider"></div>
+          <div class="workspace-label secondary">THE OTHER SIDE</div>
+          <button class="nav-link" data-view="lens" type="button">
+            <i data-lucide="scan-search"></i> Employer lens
+          </button>
+          <button class="nav-link" data-view="vouch" type="button">
+            <i data-lucide="heart-handshake"></i> Give a vouch
+          </button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="sidebar-note">
+            <span class="note-icon"><i data-lucide="sparkles"></i></span>
+            <p>
+              <strong>A little work.<br />A lot of impact.</strong
+              ><span>Made for people making<br />Calgary a little better.</span>
+            </p>
           </div>
-          <div class="results-line"><span id="results-count"></span><span>CURATED FOR CALGARY</span></div>
-          <div id="resource-list" class="resource-grid"></div>
-          <p class="directory-note">Programs and availability can change. Check the provider's page for current details.</p>
-        </section>
-
-        <section class="plan-section" id="my-plan" aria-labelledby="plan-title">
-          <div class="section-heading plan-heading"><div><div class="eyebrow"><span></span> ONE STEP AT A TIME</div><h2 id="plan-title">Your little plan<span class="plan-flower"> ✳</span></h2><p>Keep the things you'd like to come back to in one place.</p></div><div class="plan-count"><strong data-saved-count>0</strong><span>SAVED<br>FOR LATER</span></div></div>
-          <div id="plan-list"></div>
-          <p class="privacy-line"><i data-lucide="lock-keyhole" aria-hidden="true"></i> Saved only in this browser on this device. Clearing browser data removes your plan.</p>
-        </section>
-
-        <section class="support-band" id="support"><div><div class="eyebrow light"><span></span> YOU DON'T HAVE TO FIGURE IT OUT ALONE</div><h2>Need a little more support?</h2><p>Find mental health and community support resources through the City of Calgary.</p></div><a class="button button-light" href="https://www.calgary.ca/social-services/mental-health/resources.html" target="_blank" rel="noopener noreferrer">Find support <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></section>
-        <footer><span><strong>goodneighbour</strong> <span class="footer-dot">✳</span> A LITTLE MORE TOGETHER</span><span>MADE FOR THE PLACE WE CALL HOME.</span></footer>
+          <div class="profile">
+            <span class="avatar">P</span
+            ><span
+              ><strong>Priya Sharma</strong
+              ><small>Student workspace · demo</small></span
+            ><i data-lucide="chevrons-up-down"></i>
+          </div>
+        </div>
+      </aside>
+      <main id="main">
+        <header class="topbar">
+          <div class="breadcrumb">
+            WORKSPACE <i data-lucide="chevron-right"></i>
+            <strong id="breadcrumb">OVERVIEW</strong>
+          </div>
+          <div class="top-actions">
+            <span class="demo-pill"><span></span> PROTOTYPE MODE</span
+            ><span class="top-location"
+              ><i data-lucide="map-pin"></i> Calgary, AB</span
+            ><span class="avatar avatar-small">P</span>
+          </div>
+        </header>
+        <div class="page-content">
+          <div class="demo-notice">
+            <i data-lucide="info"></i
+            ><span
+              >Demo workspace: people, projects and issuer are fictional.
+              Signatures are real, but do not establish organizational
+              identity.</span
+            >
+          </div>
+          <section class="view" id="overview" aria-labelledby="overview-title">
+            <div class="page-heading">
+              <div>
+                <div class="overline">
+                  <span class="overline-dot"></span> YOUR IMPACT, IN MOTION
+                </div>
+                <h1 id="overview-title">
+                  Good morning, Priya <span class="wave">✳</span>
+                </h1>
+                <p>Here's what your good work is building.</p>
+              </div>
+              <button class="button primary" data-view="projects" type="button">
+                Explore projects <i data-lucide="arrow-up-right"></i>
+              </button>
+            </div>
+            <div class="dashboard-grid">
+              <div class="main-column">
+                <section class="feature-panel">
+                  <div class="feature-copy">
+                    <span class="feature-tag"
+                      ><i data-lucide="sparkles"></i> A LITTLE WORK. A BIGGER
+                      STORY.</span
+                    >
+                    <h2>Your skills deserve<br />to <em>be seen.</em></h2>
+                    <p>
+                      The things you do for your community say a lot about what
+                      you can do next.
+                    </p>
+                    <button
+                      class="button white"
+                      type="button"
+                      data-view="credentials"
+                    >
+                      See your credentials <i data-lucide="arrow-up-right"></i>
+                    </button>
+                  </div>
+                  <div
+                    class="feature-photo"
+                    role="img"
+                    aria-label="People working together at a table"
+                  ></div>
+                  <span class="feature-caption"
+                    >COMMUNITY LOOKS GOOD ON YOU <span>↗</span></span
+                  >
+                </section>
+                <div class="section-title">
+                  <div>
+                    <div class="overline">THE WORK BEHIND THE PROOF</div>
+                    <h2>
+                      Make your next move <span class="title-spark">✳</span>
+                    </h2>
+                  </div>
+                  <button class="text-link" type="button" data-view="projects">
+                    View all projects <i data-lucide="arrow-right"></i>
+                  </button>
+                </div>
+                <div class="project-list" id="overview-projects"></div>
+                <div class="how-strip">
+                  <span class="how-symbol"
+                    ><i data-lucide="heart-handshake"></i
+                  ></span>
+                  <div>
+                    <strong>Good work. Real-world proof.</strong>
+                    <p>Every story starts with someone you helped.</p>
+                  </div>
+                  <button class="text-link" type="button" data-view="vouch">
+                    Give a vouch <i data-lucide="arrow-right"></i>
+                  </button>
+                </div>
+              </div>
+              <aside class="right-column">
+                <section class="impact-panel">
+                  <div class="panel-kicker">YOUR IMPACT <span>✳</span></div>
+                  <div class="impact-number">
+                    <strong data-count>0</strong
+                    ><span
+                      >signed<br />credential<span data-count-s></span
+                    ></span>
+                  </div>
+                  <p>Every credential tells the story behind a skill.</p>
+                  <div class="impact-rule"></div>
+                  <div class="impact-detail">
+                    <span
+                      ><i data-lucide="shield-check"></i> Signature
+                      checked</span
+                    ><strong>Ed25519</strong>
+                  </div>
+                  <div class="impact-detail">
+                    <span><i data-lucide="quote"></i> Grounded in</span
+                    ><strong>Submitted words</strong>
+                  </div>
+                </section>
+                <div class="side-heading">
+                  <div>
+                    <div class="overline">PROOF WITH A PURPOSE</div>
+                    <h2>Your latest credential</h2>
+                  </div>
+                  <button
+                    class="icon-button"
+                    type="button"
+                    data-view="credentials"
+                    aria-label="View credentials"
+                    title="View credentials"
+                  >
+                    <i data-lucide="arrow-up-right"></i>
+                  </button>
+                </div>
+                <div id="latest-credential"></div>
+                <section class="lens-promo">
+                  <span class="lens-icon"
+                    ><i data-lucide="scan-search"></i
+                  ></span>
+                  <div>
+                    <span class="overline">A DIFFERENT KIND OF MATCH</span>
+                    <h3>See it through an employer's eyes.</h3>
+                    <p>Turn a job description into a clear evidence map.</p>
+                    <button class="text-link" type="button" data-view="lens">
+                      Try the employer lens <i data-lucide="arrow-right"></i>
+                    </button>
+                  </div>
+                </section>
+              </aside>
+            </div>
+          </section>
+          <section
+            class="view"
+            id="projects"
+            hidden
+            aria-labelledby="projects-title"
+          >
+            <div class="page-heading">
+              <div>
+                <div class="overline">
+                  <span class="overline-dot"></span> GOOD WORK STARTS HERE
+                </div>
+                <h1 id="projects-title">
+                  Find your next project<span class="wave">.</span>
+                </h1>
+                <p>Small projects, meaningful impact, skills worth sharing.</p>
+              </div>
+            </div>
+            <div class="section-intro">
+              <span><i data-lucide="map-pin"></i> CALGARY COMMUNITY</span
+              ><span>EXAMPLE OPPORTUNITIES</span>
+            </div>
+            <div class="projects-grid" id="all-projects"></div>
+            <div class="inline-note">
+              <i data-lucide="info"></i> These opportunities are illustrative,
+              not live listings or partner requests.
+            </div>
+          </section>
+          <section
+            class="view"
+            id="credentials"
+            hidden
+            aria-labelledby="credentials-title"
+          >
+            <div class="page-heading">
+              <div>
+                <div class="overline">
+                  <span class="overline-dot"></span> MORE THAN A LINE ON A
+                  RÉSUMÉ
+                </div>
+                <h1 id="credentials-title">
+                  Your work, vouched for<span class="wave">.</span>
+                </h1>
+                <p>
+                  Every credential connects a skill to the person behind the
+                  proof.
+                </p>
+              </div>
+              <button class="button primary" type="button" data-view="vouch">
+                Create a demo vouch <i data-lucide="arrow-up-right"></i>
+              </button>
+            </div>
+            <div class="credentials-layout">
+              <div id="credentials-list"></div>
+              <aside class="explain-panel">
+                <div class="panel-kicker">
+                  THE TRUST LAYER <i data-lucide="shield-check"></i>
+                </div>
+                <h2>Proof you can<br />look closer at.</h2>
+                <p>
+                  Each credential is signed using a demo issuer key stored on
+                  this device. Editing its contents breaks the signature.
+                </p>
+                <ul>
+                  <li><i data-lucide="check"></i> Signed with Ed25519</li>
+                  <li>
+                    <i data-lucide="check"></i> Quotes checked against the
+                    transcript
+                  </li>
+                  <li>
+                    <i data-lucide="check"></i> No account or personal data sent
+                  </li>
+                </ul>
+                <div class="explain-foot">DEMO ONLY · NOT AN OPEN BADGE</div>
+              </aside>
+            </div>
+          </section>
+          <section class="view" id="lens" hidden aria-labelledby="lens-title">
+            <div class="page-heading">
+              <div>
+                <div class="overline">
+                  <span class="overline-dot"></span> THE EMPLOYER LENS
+                </div>
+                <h1 id="lens-title">
+                  See the proof behind<br />the potential<span class="wave"
+                    >.</span
+                  >
+                </h1>
+                <p>
+                  Connect job requirements to signed evidence, one line at a
+                  time.
+                </p>
+              </div>
+              <span class="role-badge"
+                ><i data-lucide="scan-search"></i> EMPLOYER VIEW</span
+              >
+            </div>
+            <div class="lens-layout">
+              <div class="lens-input">
+                <div class="card-label">
+                  <span>01 / THE OPPORTUNITY</span
+                  ><i data-lucide="file-text"></i>
+                </div>
+                <h2>What are you looking for?</h2>
+                <p>
+                  Paste a job description or use the example to explore the
+                  lens.
+                </p>
+                <label for="job-description">JOB DESCRIPTION</label
+                ><textarea
+                  id="job-description"
+                  rows="9"
+                  placeholder="Paste requirements, one per line..."
+                ></textarea>
+                <div class="lens-buttons">
+                  <button type="button" class="button primary" id="analyze-job">
+                    Find evidence <i data-lucide="arrow-right"></i></button
+                  ><button type="button" class="button subtle" id="example-job">
+                    Use example
+                  </button>
+                </div>
+                <div class="lens-disclaimer">
+                  <i data-lucide="info"></i> Local keyword matching, not AI or a
+                  hiring recommendation. Review every source and gap yourself.
+                </div>
+              </div>
+              <div class="lens-output">
+                <div class="card-label">
+                  <span>02 / THE EVIDENCE</span
+                  ><span class="output-dot">LIVE VIEW</span>
+                </div>
+                <div id="lens-results" class="lens-empty">
+                  <span><i data-lucide="scan-search"></i></span>
+                  <h2>Let's connect the dots.</h2>
+                  <p>Your evidence map will appear here.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="view" id="vouch" hidden aria-labelledby="vouch-title">
+            <div class="page-heading">
+              <div>
+                <div class="overline">
+                  <span class="overline-dot"></span> THE PEOPLE BEHIND THE PROOF
+                </div>
+                <h1 id="vouch-title">
+                  Every good story<br />starts with someone<span class="wave"
+                    >.</span
+                  >
+                </h1>
+                <p>Tell us about the help you received, in your own words.</p>
+              </div>
+              <span class="role-badge"
+                ><i data-lucide="heart-handshake"></i> COMMUNITY VIEW</span
+              >
+            </div>
+            <div class="vouch-layout">
+              <form id="vouch-form" class="vouch-form">
+                <div class="card-label">
+                  <span>YOUR WORDS MATTER</span><span>ABOUT 2 MIN</span>
+                </div>
+                <h2>How did it go?</h2>
+                <p>
+                  Use your own words. You can type or use your browser's
+                  speech-to-text, if available.
+                </p>
+                <label for="vouch-task">What did they help with?</label
+                ><select id="vouch-task" required>
+                  <option value="">Choose a project</option>
+                  <option>Help neighbours connect online</option>
+                  <option>Make a community spreadsheet easier</option>
+                  <option>Create a simple digital guide</option></select
+                ><label for="vouch-name">Your first name</label
+                ><input
+                  id="vouch-name"
+                  type="text"
+                  placeholder="e.g. Doug"
+                  maxlength="40"
+                  required
+                />
+                <div class="label-row">
+                  <label for="vouch-transcript"
+                    >What would you like to say?</label
+                  ><button class="voice-button" type="button" id="voice-button">
+                    <i data-lucide="mic"></i> <span>Use voice</span>
+                  </button>
+                </div>
+                <textarea
+                  id="vouch-transcript"
+                  rows="5"
+                  placeholder="They showed me how to..."
+                  maxlength="2000"
+                  required
+                ></textarea>
+                <p class="field-hint" id="voice-status">
+                  Speech recognition may send audio to your browser's speech
+                  provider. You can type instead.
+                </p>
+                <fieldset>
+                  <legend>What skills did you see?</legend>
+                  <p class="field-hint">
+                    Select only skills supported by your words. Your full quote
+                    will be attached to each.
+                  </p>
+                  <div class="skill-options">
+                    <label
+                      ><input
+                        type="checkbox"
+                        name="skill"
+                        value="Communication"
+                      />
+                      Communication</label
+                    ><label
+                      ><input type="checkbox" name="skill" value="Digital" />
+                      Digital</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        name="skill"
+                        value="Problem solving"
+                      />
+                      Problem solving</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        name="skill"
+                        value="Collaboration"
+                      />
+                      Collaboration</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        name="skill"
+                        value="Adaptability"
+                      />
+                      Adaptability</label
+                    ><label
+                      ><input type="checkbox" name="skill" value="Writing" />
+                      Writing</label
+                    ><label
+                      ><input type="checkbox" name="skill" value="Reading" />
+                      Reading</label
+                    ><label
+                      ><input type="checkbox" name="skill" value="Numeracy" />
+                      Numeracy</label
+                    ><label
+                      ><input type="checkbox" name="skill" value="Creativity and innovation" />
+                      Creativity and innovation</label
+                    >
+                  </div>
+                </fieldset>
+                <label class="confirm-check"
+                  ><input type="checkbox" id="confirm-words" required />
+                  <span
+                    >These are my words and I agree to include them in this demo
+                    credential.</span
+                  ></label
+                >
+                <div class="inline-note compact">
+                  <i data-lucide="lock-keyhole"></i> Saved in this browser only.
+                  Don't enter sensitive information.
+                </div>
+                <button type="submit" class="button primary submit-vouch">
+                  Confirm and review vouch
+                  <i data-lucide="arrow-right"></i>
+                </button>
+                <p class="form-error" id="vouch-error" role="status"></p>
+              </form>
+              <aside class="vouch-aside">
+                <span class="large-quote">“</span>
+                <h2>Your experience is the evidence.</h2>
+                <p>
+                  What you say helps someone show what they can do. Nothing is
+                  issued until you confirm your words.
+                </p>
+                <div class="aside-steps">
+                  <div><span>01</span> Share what happened</div>
+                  <div><span>02</span> Choose the skills you saw</div>
+                  <div><span>03</span> Confirm your words</div>
+                </div>
+                <div class="aside-bottom">
+                  <i data-lucide="shield-check"></i> A more human kind of proof.
+                </div>
+              </aside>
+            </div>
+          </section>
+          <footer>
+            <span
+              >© 2026 VOUCH YYC <span class="footer-star">✳</span> BUILT FOR
+              CALGARY</span
+            ><span>GOOD WORK SHOULD GO PLACES.</span>
+          </footer>
+        </div>
+      </main>
+    </div>
+    <dialog id="credential-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-header">
+        <div>
+          <div class="overline">LOOK CLOSER</div>
+          <h2 id="dialog-title">Credential details</h2>
+        </div>
+        <button
+          class="icon-button"
+          id="close-dialog"
+          type="button"
+          aria-label="Close credential details"
+          title="Close"
+        >
+          <i data-lucide="x"></i>
+        </button>
       </div>
-    </main>
-  </div>
-  <div class="sr-only" id="announcement" aria-live="polite" aria-atomic="true"></div>
-</body>
+      <div id="dialog-content"></div>
+      <div class="verify-box">
+        <div>
+          <strong>Try the tamper test</strong>
+          <p>
+            Edit the signed credential or use the button below, then check its
+            signature.
+          </p>
+        </div>
+        <label for="credential-token">SIGNED CREDENTIAL (JWS)</label
+        ><textarea id="credential-token" rows="4" spellcheck="false"></textarea>
+        <div class="verify-actions">
+          <button class="button subtle" id="tamper-token" type="button">
+            Change a character</button
+          ><button class="button primary" id="verify-token" type="button">
+            Verify signature <i data-lucide="shield-check"></i>
+          </button>
+        </div>
+        <p id="verify-result" role="status"></p>
+      </div>
+    </dialog>
+    <dialog id="approval-dialog" aria-labelledby="approval-title">
+      <div class="dialog-header">
+        <div>
+          <div class="overline">DEMO COORDINATOR REVIEW</div>
+          <h2 id="approval-title">Review the vouch</h2>
+        </div>
+        <button
+          class="icon-button"
+          id="cancel-approval"
+          type="button"
+          aria-label="Close review"
+          title="Close"
+        >
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <p>
+        This is a simulated approval, not a real organization or identity check.
+        Review the confirmed words before issuing.
+      </p>
+      <div class="dialog-detail">
+        <strong id="approval-task"></strong>
+        <p id="approval-witness"></p>
+        <p id="approval-quote"></p>
+        <p id="approval-skills"></p>
+      </div>
+      <div class="verify-actions">
+        <button class="button subtle" type="button" id="back-to-vouch">
+          Back to edit</button
+        ><button class="button primary" type="button" id="approve-vouch">
+          Approve and issue demo credential <i data-lucide="arrow-right"></i>
+        </button>
+      </div>
+      <p id="approval-error" role="status"></p>
+    </dialog>
+    <div
+      class="sr-only"
+      id="announcement"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+  </body>
 </html>
