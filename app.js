@@ -89,6 +89,7 @@ const viewNames = {
   credentials: "My credentials",
   lens: "Employer lens",
   vouch: "Give a vouch",
+  verification: "Account verification",
 };
 const escapeHTML = (value) =>
   String(value ?? "").replace(
@@ -437,6 +438,37 @@ document.querySelector("#job-select").addEventListener("change", (event) => {
   analyzeJob();
 });
 document.querySelector("#analyze-job").addEventListener("click", analyzeJob);
+
+document.querySelector("#badge-lookup-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = document.querySelector("#badge-lookup-result");
+  const button = form.querySelector('button[type="submit"]');
+  output.hidden = false;
+  output.textContent = "Checking the provider’s public record…";
+  button.disabled = true;
+  try {
+    const response = await fetch("/api/badgr/assertion", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(Object.fromEntries(new FormData(form))),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Badge lookup unavailable.");
+    const messages = {
+      found: "Provider record found. Recipient ownership and issuer trust are not verified.",
+      revoked: "The provider reports that this assertion is revoked.",
+      expired: "This assertion has expired.",
+      not_found: "No public assertion was found in this region.",
+    };
+    output.textContent = messages[result.status] || "The badge status could not be determined.";
+    if (result.status === "found" && result.badgeName) output.textContent += ` Badge: ${result.badgeName}.`;
+  } catch (error) {
+    output.textContent = error.message || "Badge lookup unavailable.";
+  } finally {
+    button.disabled = false;
+  }
+});
 
 document
   .querySelector("#vouch-form")

@@ -1,3 +1,5 @@
 node_modules/
 .env
-data/adzuna-cache.json
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

@@ -17,7 +17,9 @@
       defer
       src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"
     ></script>
+    <script defer src="/vendor/auth0.js"></script>
     <script type="module" src="app.js"></script>
+    <script type="module" src="verification-ui.mjs"></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -48,6 +50,9 @@
           </button>
           <button class="nav-link" data-view="vouch" type="button">
             <i data-lucide="heart-handshake"></i> Give a vouch
+          </button>
+          <button class="nav-link" data-view="verification" type="button">
+            <i data-lucide="shield-check"></i> Account verification
           </button>
         </nav>
         <div class="sidebar-bottom">
@@ -359,6 +364,17 @@
                 </div>
               </div>
             </div>
+            <section class="badge-lookup" aria-labelledby="badge-lookup-title">
+              <div class="card-label"><span>03 / PUBLIC BADGE RECORD</span><i data-lucide="badge-check"></i></div>
+              <h2 id="badge-lookup-title">Look up a Badgr badge</h2>
+              <p>Check the status of a publicly shared hosted assertion on Badgr / Parchment Digital Badges.</p>
+              <form id="badge-lookup-form" method="post" action="/api/badgr/assertion">
+                <div class="badge-fields"><div><label for="badge-region">Provider region</label><select id="badge-region" name="region"><option value="canada">Canada</option><option value="us">United States</option><option value="legacy">Legacy Badgr.io</option></select></div><div><label for="badge-id">Assertion ID</label><input id="badge-id" name="assertionId" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9_-]{1,128}" maxlength="128" required placeholder="e.g. abc123"></div></div>
+                <button class="button primary" type="submit">Look up badge <i data-lucide="arrow-right"></i></button>
+              </form>
+              <p class="badge-warning">This checks the provider's public record, expiry and revocation only. It does not verify recipient ownership, issuer trust, signatures, or complete Open Badges compliance. Do not use it as a hiring decision.</p>
+              <div id="badge-lookup-result" class="badge-result" role="status" aria-live="polite" hidden></div>
+            </section>
           </section>
           <section class="view" id="vouch" hidden aria-labelledby="vouch-title">
             <div class="page-heading">
@@ -505,6 +521,17 @@
                   <i data-lucide="shield-check"></i> A more human kind of proof.
                 </div>
               </aside>
+            </div>
+          </section>
+          <section class="view" id="verification" hidden aria-labelledby="verification-title">
+            <div class="page-heading"><div><div class="overline"><span class="overline-dot"></span> TRUST STARTS HERE</div><h1 id="verification-title">Make your identity count<span class="wave">.</span></h1><p>Verify your account and request a review for your organization.</p></div><span class="role-badge"><i data-lucide="shield-check"></i> ACCOUNT SECURITY</span></div>
+            <div class="verification-grid">
+              <div class="verification-main">
+                <section class="verification-panel"><div class="verification-number">01 <span>ACCOUNT</span></div><h2>Sign in securely.</h2><p>Use your own account and verify your email address. Your contact details are not public.</p><div id="verification-account" class="verification-status" role="status">Checking account service…</div><div class="verification-actions"><button class="button primary" type="button" id="account-login" hidden>Sign in or create account <i data-lucide="arrow-up-right"></i></button><button class="button subtle" type="button" id="account-logout" hidden>Sign out</button></div></section>
+                <section class="verification-panel"><div class="verification-number">02 <span>IDENTITY</span></div><h2>Verify your identity.</h2><p>Stripe handles your government ID and matching selfie. Vouch does not upload or store your licence image or number.</p><div id="verification-identity" class="verification-status">Sign in to get started.</div><div class="verification-actions"><button class="button primary" type="button" id="identity-start" disabled>Verify with Stripe <i data-lucide="arrow-up-right"></i></button><button class="button subtle" type="button" id="identity-refresh" disabled>Refresh status</button></div><p class="verification-footnote">A verified ID is not a guarantee of truth or a unique person. Duplicate identity review is a separate step.</p></section>
+                <section class="verification-panel"><div class="verification-number">03 <span>ORGANIZATION</span></div><h2>Request organization review.</h2><p>We need independently checkable details. Submitting them does not automatically verify the organization or your affiliation.</p><form id="organization-form" method="post" action="/api/account/organization"><label for="organization-name">Legal organization name</label><input id="organization-name" name="name" type="text" autocomplete="organization" maxlength="150" required><label for="organization-registry">Registry number or public registry reference</label><input id="organization-registry" name="registry" type="text" maxlength="150" required><label for="organization-website">Official website</label><input id="organization-website" name="website" type="url" placeholder="https://" maxlength="500" required><label for="organization-email">Official contact email</label><input id="organization-email" name="email" type="email" autocomplete="email" maxlength="254" required><label for="organization-phone">Official contact phone</label><input id="organization-phone" name="phone" type="tel" autocomplete="tel" maxlength="40" required><button class="button primary" type="submit" id="organization-submit" disabled>Submit for review <i data-lucide="arrow-right"></i></button></form><div id="verification-organization" class="verification-status" role="status">No organization review requested.</div></section>
+              </div>
+              <aside class="verification-aside"><span class="lens-icon"><i data-lucide="shield-check"></i></span><div class="overline">BEFORE A BACKING CAN BE TRUSTED</div><h2>More than a checkmark.</h2><p>Each layer answers a different question about the people and organization behind a backing.</p><ul><li><strong>Email ownership</strong><span>Can the account holder be reached?</span></li><li><strong>Government ID</strong><span>Did the identity provider verify the person?</span></li><li><strong>Organization review</strong><span>Are the registry, official contact, and staff affiliation confirmed independently?</span></li><li><strong>Duplicate and conflict checks</strong><span>Are the student, witness, and coordinator separate people?</span></li></ul><div class="inline-note"><i data-lucide="info"></i> Real verified backing issuance is not yet enabled. Existing signed credentials are fictional demos.</div></aside>
             </div>
           </section>
           <footer>
