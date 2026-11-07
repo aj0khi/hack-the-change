@@ -3,6 +3,7 @@
 // startup at most every CACHE_HOURS and serve from the cache file afterwards.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+import { skillDemand } from "./skills.mjs";
 
 export const DEFAULT_QUERIES = [
   "customer service",
@@ -65,8 +66,14 @@ async function readCache(path) {
   }
 }
 
-// Returns { jobs, fetchedAt, source } — never throws; falls back to whatever cache exists.
-export async function loadJobs({ appId, appKey, cachePath, log = console }) {
+// Returns { jobs, fetchedAt, source, demand } — never throws; falls back to whatever cache exists.
+// `demand` counts how many postings mention each Skills for Success skill (keyword rules).
+export async function loadJobs(options) {
+  const snapshot = await loadJobSnapshot(options);
+  return { ...snapshot, demand: skillDemand(snapshot.jobs) };
+}
+
+async function loadJobSnapshot({ appId, appKey, cachePath, log = console }) {
   const cached = await readCache(cachePath);
   const fresh =
     cached?.fetchedAt && Date.now() - Date.parse(cached.fetchedAt) < CACHE_HOURS * 3600e3;

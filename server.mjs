@@ -4,6 +4,9 @@ import { rateLimit } from 'express-rate-limit';
 import Stripe from 'stripe';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { createVerificationStore } from './verification-store.mjs';
 import { inspectBadgrAssertion } from './badgr.mjs';
 import { runLens } from './lens.mjs';
@@ -34,7 +37,7 @@ function publicStatus(store, subject) {
   };
 }
 
-export function createApp({ config, store, authenticate, getUserInfo, stripe, badgeFetcher, lens = {}, getJobs }) {
+export function createApp({ config, store, authenticate, getUserInfo, stripe, badgeFetcher, lens = {}, getJobs, lensCache = new Map(), onLensCacheChange }) {
   const app = express();
   app.disable('x-powered-by');
   app.use('/api', (_request, response, next) => { response.set('Cache-Control', 'no-store'); next(); });
@@ -47,7 +50,18 @@ export function createApp({ config, store, authenticate, getUserInfo, stripe, ba
     express.json({ limit: '256kb' }),
     async (request, response) => {
       try {
-        const result = await runLens(request.body || {}, { generate: lens.generate, model: lens.model });
+        // Identical posting + credentials → reuse the last good answer. Keeps demo re-runs from
+        // burning the Gemini free-tier daily quota. Fallbacks are never cached.
+        const body = request.body || {};
+        const key = createHash('sha256').update(JSON.stringify([body.posting, body.credentials, body.issuerPublicKey])).digest('hex');
+        const hit = lensCache.get(key);
+        if (hit) return response.json({ ...hit, cached: true });
+        const result = await runLens(body, { generate: lens.generate, model: lens.model });
+        if (result.status === 200 && !result.body.fallback) {
+          lensCache.set(key, result.body);
+          if (lensCache.size > 100) lensCache.delete(lensCache.keys().next().value);
+          onLensCacheChange?.(lensCache);
+        }
         response.status(result.status).json(result.body);
       } catch { response.json({ fallback: true }); }
     });
@@ -152,7 +166,7 @@ export function createApp({ config, store, authenticate, getUserInfo, stripe, ba
     return response.status(500).json({ error: 'Verification service unavailable.' });
   });
 
-  for (const file of ['index.html', 'styles.css', 'app.js', 'trust.mjs', 'verification-ui.mjs']) {
+  for (const file of ['index.html', 'styles.css', 'app.js', 'trust.mjs', 'projects.mjs', 'skills.mjs', 'verification-ui.mjs']) {
     app.get(file === 'index.html' ? ['/', '/index.html'] : `/${file}`, (_request, response) => response.sendFile(join(root, file)));
   }
   app.get('/vendor/auth0.js', (_request, response) => response.sendFile(join(root, 'node_modules/@auth0/auth0-spa-js/dist/auth0-spa-js.production.js')));
@@ -181,5 +195,19 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const generate = await createGeminiGenerator({ apiKey: process.env.GEMINI_API_KEY, model });
   if (!generate) console.warn('[lens] GEMINI_API_KEY not set; the lens will use offline keyword matching.');
   const jobsReady = loadJobs({ appId: process.env.ADZUNA_APP_ID, appKey: process.env.ADZUNA_APP_KEY, cachePath: join(root, 'data', 'adzuna-cache.json') });
-  createApp({ config, store, authenticate, getUserInfo, stripe, lens: { generate, model }, getJobs: () => jobsReady }).listen(port, '127.0.0.1', () => console.log(`Vouch verification server: ${appOrigin}`));
+  // Saved lens results live in data/lens-cache.json so a restart doesn't cost Gemini quota.
+  const lensCachePath = join(root, 'data', 'lens-cache.json');
+  let lensCache = new Map();
+  try { lensCache = new Map(Object.entries(JSON.parse(readFileSync(lensCachePath, 'utf8')))); } catch { /* No saved results yet. */ }
+  if (lensCache.size) console.log(`[lens] loaded ${lensCache.size} saved result(s).`);
+  let saveTimer;
+  const onLensCacheChange = cache => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      mkdir(dirname(lensCachePath), { recursive: true })
+        .then(() => writeFile(lensCachePath, JSON.stringify(Object.fromEntries(cache))))
+        .catch(error => console.warn(`[lens] could not save results: ${error.message}`));
+    }, 500);
+  };
+  createApp({ config, store, authenticate, getUserInfo, stripe, lens: { generate, model }, getJobs: () => jobsReady, lensCache, onLensCacheChange }).listen(port, '127.0.0.1', () => console.log(`Vouch verification server: ${appOrigin}`));
 }

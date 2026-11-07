@@ -4,39 +4,8 @@ import {
   verifyCredential,
   alterCredential,
 } from "./trust.mjs";
-
-const projects = [
-  {
-    title: "Help neighbours connect online",
-    organization: "Neighbourhood centre · example",
-    description:
-      "Help someone feel confident connecting with family over a video call.",
-    skills: ["Communication", "Digital"],
-    icon: "video",
-    color: "peach",
-    time: "1–2 HOURS",
-  },
-  {
-    title: "Make a community spreadsheet easier",
-    organization: "Community organization · example",
-    description:
-      "Organize a sign-up sheet so a small team can spend more time helping.",
-    skills: ["Digital", "Problem solving"],
-    icon: "sheet",
-    color: "lilac",
-    time: "2–3 HOURS",
-  },
-  {
-    title: "Create a simple digital guide",
-    organization: "Neighbourhood centre · example",
-    description:
-      "Write clear, friendly instructions for someone learning a new tool.",
-    skills: ["Writing", "Communication"],
-    icon: "file-heart",
-    color: "mint",
-    time: "1–2 HOURS",
-  },
-];
+import { projects } from "./projects.mjs";
+import { skillTerms } from "./skills.mjs";
 
 const examples = {
   transcript:
@@ -59,18 +28,6 @@ const examples = {
     },
   ],
 };
-const skillTerms = {
-  Communication: /\b(communicat\w*|explain\w*|present\w*|interpersonal)\b/i,
-  Digital:
-    /\b(digital|technology|technical|computer|software|spreadsheet\w*)\b/i,
-  "Problem solving": /\b(problem[ -]solv\w*|troubleshoot\w*)\b/i,
-  Collaboration: /\b(collaborat\w*|teamwork|team player)\b/i,
-  Adaptability: /\b(adaptab\w*|adapt\w*|flexib\w*)\b/i,
-  Writing: /\b(writ\w*|documentation|document\w*)\b/i,
-  Reading: /\b(read\w*|interpret\w*)\b/i,
-  Numeracy: /\b(numeracy|numerical|calculat\w*|math\w*)\b/i,
-  "Creativity and innovation": /\b(creativ\w*|innovat\w*)\b/i,
-};
 const jobExample = `Client Support Coordinator (Junior) — Bow River Community Services (fictional example), Calgary, AB
 
 We're looking for a warm, organized person to join our front-desk technology team. You'll be the first point of contact for older adults and newcomers who need help with our online booking system, video appointments and shared devices.
@@ -83,6 +40,17 @@ Excellent communication skills with people of all ages and comfort levels with t
 
 We offer a supportive team, paid training and a transit pass.`;
 let jobPostings = [];
+let jobDemand; // { total, counts: { [skill]: n } } from /api/jobs
+
+// "Builds Digital: mentioned in 12 of 30 Calgary posting excerpts" for a project's most-asked-for skill.
+function demandLine(skills) {
+  if (!jobDemand?.total || !skills?.length) return "";
+  const [skill, count] = skills
+    .map((name) => [name, jobDemand.counts?.[name] ?? 0])
+    .sort((a, b) => b[1] - a[1])[0];
+  if (!count) return "";
+  return `<span class="suggestion-demand">Builds ${escapeHTML(skill)}: mentioned in ${count} of ${jobDemand.total} Calgary posting excerpts (Adzuna)</span>`;
+}
 const viewNames = {
   overview: "Overview",
   projects: "Explore projects",
@@ -196,6 +164,12 @@ function renderProjects() {
   document.querySelector("#all-projects").innerHTML = projects
     .map(projectCard)
     .join("");
+  // The vouch task list comes from the same catalog, so "Start this project" can preselect any of them.
+  document.querySelector("#vouch-task").innerHTML =
+    '<option value="">Choose a project</option>' +
+    projects
+      .map((project) => `<option>${escapeHTML(project.title)}</option>`)
+      .join("");
   refreshIcons();
 }
 
@@ -259,16 +233,62 @@ async function openCredential(index) {
   refreshIcons();
 }
 
-const gapMarkup = (text, kind) =>
-  `<div class="lens-result"><div class="lens-result-top"><span class="result-status gap">${icon("minus")}</span><h3>${escapeHTML(text)}${kind ? ` <span class="kind-tag">${escapeHTML(kind)}</span>` : ""}</h3></div><p class="result-desc">No verified evidence yet. This is not a judgment of ability.</p></div>`;
+// Lens state: who is looking, and the last result so the toggle can re-render without a new API call.
+let lensAudience = "employer";
+let lastLens; // { mode: "ai", data } | { mode: "offline", input }
+const DISCLAIMER_AI =
+  "AI extracts requirements and proposes matches; every quote is checked word-for-word against a signed credential before it's shown. Gaps are never filled by AI. Not a hiring recommendation.";
+const DISCLAIMER_OFFLINE =
+  "The AI lens is unavailable, so simple keyword rules matched requirements to signed credentials. Review every source and gap yourself. Not a hiring recommendation.";
+
+function suggestionMarkup(kind, suggestions, keywordBased = false) {
+  if (lensAudience !== "student") return "";
+  if (kind === "credential" || kind === "other")
+    return `<div class="suggestion-box muted"><p>This needs an official credential or availability; community projects can't prove it.</p></div>`;
+  if (!suggestions?.length)
+    // Offline lines are raw sentences (headings, boilerplate), so stay quiet rather than add noise.
+    return keywordBased
+      ? ""
+      : `<div class="suggestion-box muted"><p>No community project in our catalog builds this yet.</p></div>`;
+  return `<div class="suggestion-box"><p class="suggestion-title">${icon("sprout")} Projects that could build this${keywordBased ? " <span>(keyword match)</span>" : ""}</p>${suggestions
+    .map(
+      (s) =>
+        `<div class="suggestion"><div><strong>${escapeHTML(s.title)}</strong><span class="suggestion-meta">${escapeHTML(s.organization)} · ${escapeHTML(s.time)}</span>${s.why ? `<p>${escapeHTML(s.why)}</p>` : ""}${demandLine(s.skills)}</div><button class="button subtle" type="button" data-project="${escapeHTML(s.title)}">Start this project ${icon("arrow-right")}</button></div>`,
+    )
+    .join("")}</div>`;
+}
+
+const gapMarkup = (text, kind, suggestions, keywordBased) =>
+  `<div class="lens-result"><div class="lens-result-top"><span class="result-status gap">${icon("minus")}</span><h3>${escapeHTML(text)}${kind ? ` <span class="kind-tag">${escapeHTML(kind)}</span>` : ""}</h3></div><p class="result-desc">No verified evidence yet. This is not a judgment of ability.</p>${suggestionMarkup(kind, suggestions, keywordBased)}</div>`;
+
+// Offline suggestions: catalog projects sharing a skill the gap line mentions.
+function keywordSuggestions(line) {
+  const wanted = Object.keys(skillTerms).filter((skill) => skillTerms[skill].test(line));
+  return projects
+    .map((project) => ({ project, score: project.skills.filter((s) => wanted.includes(s)).length }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2)
+    .map(({ project }) => ({ ...project, why: `Practises ${project.skills.filter((s) => wanted.includes(s)).join(" and ").toLowerCase()}.` }));
+}
+
+function renderLens() {
+  if (!lastLens) return;
+  const target = document.querySelector("#lens-results");
+  document.querySelector("#lens-disclaimer-text").textContent =
+    lastLens.mode === "ai" ? DISCLAIMER_AI : DISCLAIMER_OFFLINE;
+  if (lastLens.mode === "ai") renderAiLens(lastLens.data, target);
+  else keywordLens(lastLens.input, target);
+  refreshIcons();
+}
 
 function renderAiLens(data, target) {
   const { stats } = data;
-  const summary = `<div class="lens-summary" role="status"><strong>${stats.matched} of ${stats.total}</strong> requirement${stats.total === 1 ? "" : "s"} ${stats.matched === 1 ? "has" : "have"} verified evidence <span class="lens-source">AI · ${escapeHTML(data.model)} · ${stats.validCredentials} signed credential${stats.validCredentials === 1 ? "" : "s"} checked</span></div>`;
+  const summary = `<div class="lens-summary" role="status"><strong>${stats.matched} of ${stats.total}</strong> requirement${stats.total === 1 ? "" : "s"} ${stats.matched === 1 ? "has" : "have"} verified evidence <span class="lens-source">AI · ${escapeHTML(data.model)} · ${stats.validCredentials} signed credential${stats.validCredentials === 1 ? "" : "s"} checked${data.cached ? " · saved result" : ""}</span></div>`;
   const rows = data.requirements
     .map((requirement) => {
       if (!requirement.matches.length)
-        return gapMarkup(requirement.text, requirement.kind);
+        return gapMarkup(requirement.text, requirement.kind, requirement.suggestedProjects);
       return `<div class="lens-result"><div class="lens-result-top"><span class="result-status">${icon("check")}</span><h3>${escapeHTML(requirement.text)} <span class="kind-tag">${escapeHTML(requirement.kind)}</span></h3></div>${requirement.matches
         .map(
           (match) =>
@@ -324,9 +344,11 @@ async function analyzeJob() {
     button.disabled = false;
     target.removeAttribute("aria-busy");
   }
-  if (!data.fallback && Array.isArray(data.requirements)) renderAiLens(data, target);
-  else await keywordLens(input, target);
-  refreshIcons();
+  lastLens =
+    !data.fallback && Array.isArray(data.requirements)
+      ? { mode: "ai", data }
+      : { mode: "offline", input };
+  renderLens();
 }
 
 // Offline fallback: the original regex lens, clearly labelled.
@@ -348,8 +370,7 @@ async function keywordLens(input, target) {
           })),
         )
         .find((mapping) => skillTerms[mapping.skill]?.test(line));
-      if (!matched)
-        return `<div class="lens-result"><div class="lens-result-top"><span class="result-status gap">${icon("minus")}</span><h3>${escapeHTML(line)}</h3></div><p class="result-desc">No matching signed evidence found. This is not a judgment of ability.</p></div>`;
+      if (!matched) return gapMarkup(line, "", keywordSuggestions(line), true);
       return `<div class="lens-result"><div class="lens-result-top"><span class="result-status">${icon("check")}</span><h3>${escapeHTML(line)}</h3></div><p class="result-desc">${escapeHTML(matched.skill)} · “${escapeHTML(matched.quote)}”</p><button class="text-link" type="button" data-credential="${matched.index}">See the signed evidence ${icon("arrow-up-right")}</button></div>`;
     })
     .join("");
@@ -368,6 +389,15 @@ document.addEventListener("click", (event) => {
   const credentialButton = event.target.closest("[data-credential]");
   if (credentialButton)
     openCredential(Number(credentialButton.dataset.credential));
+  const audienceButton = event.target.closest("[data-audience]");
+  if (audienceButton && audienceButton.dataset.audience !== lensAudience) {
+    lensAudience = audienceButton.dataset.audience;
+    document.querySelectorAll("[data-audience]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.audience === lensAudience));
+    });
+    renderLens();
+    announce(lensAudience === "student" ? "Showing student view with project suggestions." : "Showing employer view.");
+  }
 });
 
 document
@@ -408,6 +438,8 @@ async function loadJobPostings() {
     if (!response.ok) return;
     const data = await response.json();
     jobPostings = Array.isArray(data.jobs) ? data.jobs : [];
+    jobDemand = data.demand?.total ? data.demand : undefined;
+    renderLens();
     if (!jobPostings.length) return;
     const select = document.querySelector("#job-select");
     select.insertAdjacentHTML(

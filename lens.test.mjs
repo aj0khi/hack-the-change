@@ -127,3 +127,49 @@ test("normalizes an Adzuna result and flags truncated descriptions", () => {
   assert.equal(job.description, "Provide friendly help desk support…");
   assert.equal(job.snippet, true);
 });
+
+test("project suggestions: only real catalog ids, only on soft/technical gaps, max 2", async () => {
+  const { issuer, credentials } = await setup();
+  const suggest = (projectId) => ({ projectId, why: "practice" });
+  const generate = async () => ({
+    requirements: [
+      { ...req("Spreadsheets", "technical", []), suggestedProjects: [suggest("volunteer-database"), suggest("made-up-project"), suggest("volunteer-database")] },
+      { ...req("Class 5 driver's licence", "credential", []), suggestedProjects: [suggest("tech-help-hour")] },
+      { ...req("Explain steps", "soft", [match("0", "explained every step clearly")]), suggestedProjects: [suggest("digital-guide")] },
+      { ...req("Writing", "soft", []), suggestedProjects: [suggest("newsletter"), suggest("digital-guide"), suggest("tech-help-hour")] },
+    ],
+  });
+  const { body } = await runLens({ posting: "x", credentials, issuerPublicKey: issuer.publicKey }, { generate });
+  const [sheets, licence, explain, writing] = body.requirements;
+  assert.deepEqual(sheets.suggestedProjects.map((p) => p.projectId), ["volunteer-database"]);
+  assert.equal(sheets.suggestedProjects[0].title, "Clean up a volunteer database");
+  assert.deepEqual(licence.suggestedProjects, []);
+  assert.deepEqual(explain.suggestedProjects, []);
+  assert.equal(writing.suggestedProjects.length, 2);
+  // made-up id + duplicate + credential + matched requirement + third writing suggestion
+  assert.equal(body.stats.droppedSuggestions, 5);
+});
+
+test("the prompt lists the project catalog", async () => {
+  const { issuer, credentials } = await setup();
+  let prompt = "";
+  await runLens(
+    { posting: "x", credentials, issuerPublicKey: issuer.publicKey },
+    { generate: async (input) => { prompt = input.prompt; return { requirements: [] }; } },
+  );
+  assert.ok(prompt.includes("[projectId: volunteer-database]"));
+});
+
+test("skillDemand counts each posting once per skill", async () => {
+  const { skillDemand } = await import("./skills.mjs");
+  const demand = skillDemand([
+    { title: "IT Support", description: "Troubleshoot computers. Excellent communication. Communicate with clients." },
+    { title: "Clerk", description: "Use Excel spreadsheets daily." },
+    { title: "Driver", description: "Class 1 licence required." },
+  ]);
+  assert.equal(demand.total, 3);
+  assert.equal(demand.counts.Communication, 1);
+  assert.equal(demand.counts.Digital, 2);
+  assert.equal(demand.counts["Problem solving"], 1);
+  assert.equal(demand.counts.Reading, 0);
+});
