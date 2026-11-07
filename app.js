@@ -4,7 +4,7 @@ import {
   verifyCredential,
   alterCredential,
 } from "./trust.mjs";
-import { projects } from "./lens/projects.mjs";
+import { projects, keywordProjectSuggestions } from "./lens/projects.mjs";
 import { skillTerms } from "./lens/skills.mjs";
 
 const examples = {
@@ -164,7 +164,7 @@ function renderProjects() {
   document.querySelector("#all-projects").innerHTML = projects
     .map(projectCard)
     .join("");
-  // The vouch task list comes from the same catalog, so "Start this project" can preselect any of them.
+  // The vouch task list comes from the same catalog as the project suggestions.
   document.querySelector("#vouch-task").innerHTML =
     '<option value="">Choose a project</option>' +
     projects
@@ -250,10 +250,10 @@ function suggestionMarkup(kind, suggestions, keywordBased = false) {
     return keywordBased
       ? ""
       : `<div class="suggestion-box muted"><p>No community project in our catalog builds this yet.</p></div>`;
-  return `<div class="suggestion-box"><p class="suggestion-title">${icon("sprout")} Projects that could build this${keywordBased ? " <span>(keyword match)</span>" : ""}</p>${suggestions
+  return `<div class="suggestion-box"><p class="suggestion-title">${icon("sprout")} Fictional demo projects that could build this${keywordBased ? " <span>(keyword match)</span>" : ""}</p>${suggestions
     .map(
       (s) =>
-        `<div class="suggestion"><div><strong>${escapeHTML(s.title)}</strong><span class="suggestion-meta">${escapeHTML(s.organization)} · ${escapeHTML(s.time)}</span>${s.why ? `<p>${escapeHTML(s.why)}</p>` : ""}${demandLine(s.skills)}</div><button class="button subtle" type="button" data-project="${escapeHTML(s.title)}">Start this project ${icon("arrow-right")}</button></div>`,
+        `<div class="suggestion"><div><strong>${escapeHTML(s.title)}</strong><span class="suggestion-meta">${escapeHTML(s.organization)} · ${escapeHTML(s.time)}</span>${s.why ? `<p>${escapeHTML(s.why)}</p>` : ""}${demandLine(s.skills)}</div><button class="button subtle" type="button" data-project="${escapeHTML(s.title)}">Use for a demo vouch ${icon("arrow-right")}</button></div>`,
     )
     .join("")}</div>`;
 }
@@ -263,6 +263,8 @@ const gapMarkup = (text, kind, suggestions, keywordBased) =>
 
 // Offline suggestions: catalog projects sharing a skill the gap line mentions.
 function keywordSuggestions(line) {
+  const specific = keywordProjectSuggestions(line);
+  if (specific) return specific;
   const wanted = Object.keys(skillTerms).filter((skill) => skillTerms[skill].test(line));
   return projects
     .map((project) => ({ project, score: project.skills.filter((s) => wanted.includes(s)).length }))
@@ -369,7 +371,8 @@ async function keywordLens(input, target) {
             index: credential.index,
           })),
         )
-        .find((mapping) => skillTerms[mapping.skill]?.test(line));
+        .find((mapping) => skillTerms[mapping.skill]?.test(line) &&
+          (!/\bsql\b/i.test(line) || /\bsql\b/i.test(mapping.quote)));
       if (!matched) return gapMarkup(line, "", keywordSuggestions(line), true);
       return `<div class="lens-result"><div class="lens-result-top"><span class="result-status">${icon("check")}</span><h3>${escapeHTML(line)}</h3></div><p class="result-desc">${escapeHTML(matched.skill)} · “${escapeHTML(matched.quote)}”</p><button class="text-link" type="button" data-credential="${matched.index}">See the signed evidence ${icon("arrow-up-right")}</button></div>`;
     })

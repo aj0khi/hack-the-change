@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createApp } from '../server-app.mjs';
 import { createVerificationStore } from '../verification/verification-store.mjs';
 import { createIssuer, signCredential } from '../trust.mjs';
+import { projects } from './projects.mjs';
 
 async function start(options) {
   const app = createApp({ config: { appOrigin: 'http://localhost:8766' }, store: createVerificationStore(':memory:'), ...options });
@@ -79,7 +80,7 @@ test('/api/lens reuses the answer for an identical request and never caches fall
 test('/api/lens serves a pre-loaded saved result and reports new ones', async () => {
   const { createHash } = await import('node:crypto');
   const body = { posting: 'Needs SQL', credentials: [], issuerPublicKey: 'x' };
-  const key = createHash('sha256').update(JSON.stringify([body.posting, body.credentials, body.issuerPublicKey])).digest('hex');
+  const key = createHash('sha256').update(JSON.stringify([body.posting, body.credentials, body.issuerPublicKey, projects])).digest('hex');
   const saved = { requirements: [], rejected: [], stats: { total: 0, matched: 0, gaps: 0 }, model: 'saved' };
   let calls = 0;
   let changes = 0;
@@ -93,5 +94,20 @@ test('/api/lens serves a pre-loaded saved result and reports new ones', async ()
     await post(base, { ...body, posting: 'Needs Excel' });
     assert.equal(calls, 1);
     assert.equal(changes, 1);
+  } finally { server.close(); }
+});
+
+test('/api/lens does not reuse results saved before the current project catalog', async () => {
+  const { createHash } = await import('node:crypto');
+  const body = { posting: 'Needs SQL', credentials: [], issuerPublicKey: 'x' };
+  const oldKey = createHash('sha256').update(JSON.stringify([body.posting, body.credentials, body.issuerPublicKey])).digest('hex');
+  let calls = 0;
+  const generate = async () => { calls++; return { requirements: [] }; };
+  const { server, base } = await start({ lens: { generate, model: 'mock' }, lensCache: new Map([[oldKey, { model: 'old' }]]) });
+  try {
+    const result = await (await post(base, body)).json();
+    assert.equal(calls, 1);
+    assert.equal(result.model, 'mock');
+    assert.equal(result.cached, undefined);
   } finally { server.close(); }
 });

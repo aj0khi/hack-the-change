@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { inspectBadgrAssertion } from './verification/badgr.mjs';
 import { runLens } from './lens/lens.mjs';
+import { projects } from './lens/projects.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const LENS_CACHE_MAX = 100;
@@ -64,7 +65,7 @@ export function createApp({ config, store, authenticate, getUserInfo, stripe, ba
     async (request, response) => {
       try {
         const body = request.body || {};
-        const key = createHash('sha256').update(JSON.stringify([body.posting, body.credentials, body.issuerPublicKey])).digest('hex');
+        const key = createHash('sha256').update(JSON.stringify([body.posting, body.credentials, body.issuerPublicKey, projects])).digest('hex');
         const hit = lensCache.get(key);
         if (hit) return response.json({ ...hit, cached: true });
         const result = await runLens(body, { generate: lens.generate, model: lens.model });

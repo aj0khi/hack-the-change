@@ -81,4 +81,53 @@ export const projects = [
     color: "peach",
     time: "2–3 HOURS",
   },
+  {
+    id: "community-sql-report",
+    title: "Explore a fictional community database with SQL",
+    organization: "Community centre · example",
+    description: "Use a fictional event database to practise SQL SELECT, filtering and counting, then summarize what the sample data shows.",
+    skills: ["Digital", "Numeracy", "Problem solving"],
+    icon: "database",
+    color: "lilac",
+    time: "3–4 HOURS",
+    topics: ["sql"],
+  },
+  {
+    id: "food-pantry-budget",
+    title: "Build a food pantry budget spreadsheet",
+    organization: "Food pantry · example",
+    description: "Use a fictional grocery budget to practise spreadsheet formulas, totals and a simple chart for a volunteer team.",
+    skills: ["Numeracy", "Digital", "Collaboration"],
+    icon: "sheet",
+    color: "mint",
+    time: "2–3 HOURS",
+  },
+  {
+    id: "welcome-desk",
+    title: "Plan a friendly community welcome desk",
+    organization: "Community association · example",
+    description: "Practise greeting visitors, answering common questions and working with volunteers to direct people to the right resources.",
+    skills: ["Communication", "Collaboration", "Adaptability"],
+    icon: "users",
+    color: "peach",
+    time: "2 HOURS",
+  },
+  {
+    id: "accessible-event-guide",
+    title: "Create an accessible event guide",
+    organization: "Neighbourhood centre · example",
+    description: "Read a fictional event brief and write a plain-language guide with a clear schedule, directions and accessibility information.",
+    skills: ["Reading", "Writing", "Creativity and innovation"],
+    icon: "file-heart",
+    color: "lilac",
+    time: "2–3 HOURS",
+  },
 ];
+
+export function keywordProjectSuggestions(line) {
+  if (!/\bsql\b/i.test(line)) return null;
+  return projects
+    .filter((project) => project.topics?.includes("sql"))
+    .slice(0, 2)
+    .map((project) => ({ ...project, why: "Practises SQL queries using fictional data." }));
+}
