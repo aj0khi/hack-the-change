@@ -50,10 +50,10 @@ npm start
 
 ## Deploy to Hostinger
 
-This app is a Node.js web app (built-in `node:http`, no framework), not a static-only site. Hostinger managed Node.js hosting is available on eligible plans; confirm that your plan includes Node.js applications before deploying. Hostinger's [Node.js deployment guide](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/) covers the current hPanel flow.
+This app is a Node.js/Express web app, not a static-only site. Hostinger managed Node.js hosting is available on eligible plans; confirm that your plan includes Node.js applications before deploying. Hostinger's [Node.js deployment guide](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/) covers the current hPanel flow.
 
 1. Push this repository to GitHub and connect it from **hPanel → Websites → Manage → Developer → Node.js** (the exact menu labels can vary). Import `aj0khi/hack-the-change` from the `main` branch.
-2. Select Node.js 22.x or newer. Use the repository root as the application root, `npm ci` as the install command, and `npm start` as the start command. No build command is required. The app binds to `0.0.0.0` and uses the `PORT` supplied by the host.
+2. Select Node.js 22.x or newer. Use the repository root as the application root, `server.mjs` as the entry file, `npm ci` as the install command, and `npm start` as the start command if requested. No build command is required. The app binds to `0.0.0.0` and uses the `PORT` supplied by the host.
 3. Assign the temporary domain in hPanel and wait for HTTPS to be enabled. In the app's environment-variable settings, set `APP_ORIGIN` to the exact HTTPS origin, for example `https://your-temporary-domain` (no trailing slash). Do not set `PORT` yourself if hPanel supplies it.
 4. Add these variables in hPanel; do not commit them to GitHub:
 
@@ -66,7 +66,7 @@ This app is a Node.js web app (built-in `node:http`, no framework), not a static
    | `STRIPE_SECRET_KEY` | Optional; use a Stripe test key for a demo, or leave unset |
    | `VERIFICATION_DB` | Optional; a writable persistent path if your plan provides one |
 
-   Account verification is currently parked in `verification/` and not connected to the server, so the Auth0, Stripe and `VERIFICATION_DB` variables have no effect until it is wired back in. The lens needs `GEMINI_API_KEY`, `GEMINI_MODEL`, `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`.
+   The Employer Lens also needs its AI and Adzuna variables; see [Employer Lens Setup](#employer-lens-setup).
 5. In Auth0, add `https://your-temporary-domain/` to **Allowed Callback URLs** and **Allowed Logout URLs**, and `https://your-temporary-domain` to **Allowed Web Origins**. Keep the existing API Identifier as `AUTH0_AUDIENCE`; it does not need to be your website domain.
 6. Save the variables and redeploy/restart the app. Check `https://your-temporary-domain/healthz` returns `{"status":"ok"}`, then open the site and test the demo and sign-in.
 
@@ -77,7 +77,8 @@ The local SQLite database is not a production database. If you enable account ve
 ## Project Layout
 
 ```
-server.mjs            node:http server: static files, /api/lens, /api/jobs, /healthz
+server.mjs            entry file: reads env, builds providers, listens (Hostinger imports it)
+server-app.mjs        Express app: static files, /api/lens, /api/jobs, verification APIs, /healthz
 index.html, app.js    the single-page app (all views)
 styles.css            shared styles
 trust.mjs             Ed25519 signing, verification and grounding (browser + Node)
@@ -89,13 +90,13 @@ lens/                 Employer Lens feature
   skills.mjs            Skills for Success keyword rules + Calgary demand counts
   lens.css              lens-only styles, loaded after styles.css
   *.test.mjs            lens and route tests (Gemini mocked)
-verification/         account and organization verification (parked; not wired into server.mjs)
+verification/         account and organization verification (Auth0, Stripe Identity, Badgr, SQLite)
 data/                 local caches: adzuna-cache.json, lens-cache.json (git-ignored)
 ```
 
 ## Employer Lens Setup (Gemini + Adzuna)
 
-Add `GEMINI_API_KEY`, `GEMINI_MODEL`, `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` to `.env` (see `.env.example`). `server.mjs` also loads `.env` itself, so plain `npm start` works. Without these keys the lens uses clearly labelled offline keyword matching and the Calgary job picker stays hidden.
+Add `GEMINI_API_KEY`, `GEMINI_MODEL`, `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` to `.env` (see `.env.example`). `npm start` loads `.env` when present. Without these keys the lens uses clearly labelled offline keyword matching and the Calgary job picker stays hidden.
 
 - `POST /api/lens` (`lens/lens.mjs`): verifies every credential's signature, makes one Gemini call that extracts requirements and proposes matches, then keeps a match only if its quote is word-for-word in the cited, valid credential (praise never satisfies a technical or credential requirement). Rejected proposals are returned and shown in the UI. Gemini errors or a 26 s timeout return `{ fallback: true }`. The server allows 20 new lens requests a minute.
 - `GET /api/jobs` (`lens/adzuna.mjs`): at startup fetches a few Calgary searches from Adzuna's Canada endpoint and caches them to `data/adzuna-cache.json` for 12 hours. Adzuna search results usually carry a truncated description; the UI says so and links to the full posting. Adzuna currently returns 500-character excerpts, so paste a full posting when you want a thorough check.
@@ -141,4 +142,4 @@ The first launch creates a signed fictional example. Removing browser site data 
 
 ## Checks
 
-Run the trust, lens and eligibility tests with `npm test` (Gemini is mocked, so they run offline). `verification/server.test.mjs` tests the old Express verification routes and is left out of `npm test` until those routes are wired back into `server.mjs`.
+Run all trust, lens, verification and startup tests with `npm test`. The lens tests mock the AI model and the verification tests use simulated Auth0 and Stripe providers, so they run offline; real provider integrations need configured accounts.

@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLensServer } from '../server.mjs';
+import { createApp } from '../server-app.mjs';
+import { createVerificationStore } from '../verification/verification-store.mjs';
 import { createIssuer, signCredential } from '../trust.mjs';
 
 async function start(options) {
-  const server = createLensServer(options);
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const app = createApp({ config: { appOrigin: 'http://localhost:8766' }, store: createVerificationStore(':memory:'), ...options });
+  const server = await new Promise(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
   return { server, base: `http://127.0.0.1:${server.address().port}` };
 }
 
@@ -16,7 +17,8 @@ test('serves only the listed static files, including the lens folder', async () 
       assert.equal((await fetch(`${base}${path}`)).status, 200, path);
     for (const path of ['/server.mjs', '/lens/lens.mjs', '/lens/gemini.mjs', '/.env', '/lens/../.env', '/data/lens-cache.json'])
       assert.equal((await fetch(`${base}${path}`)).status, 404, path);
-    assert.deepEqual(await (await fetch(`${base}/api/config`)).json(), { enabled: false, identityEnabled: false });
+    assert.equal((await (await fetch(`${base}/api/config`)).json()).enabled, false);
+    assert.equal((await fetch(`${base}/api/unknown`)).status, 404);
   } finally { server.close(); }
 });
 const post = (base, body) => fetch(`${base}/api/lens`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
