@@ -9,6 +9,37 @@
   --font: "DM Sans", sans-serif;
   --display: "Manrope", sans-serif;
 }
+.badge-lookup { margin-top: 20px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 25px; }
+.badge-lookup h2 { font: 800 20px/1.3 var(--display); margin: 20px 0 7px; }
+.badge-lookup p { color: #66776e; font-size: 13px; }
+.badge-fields { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr); gap: 14px; margin: 18px 0 14px; }
+.badge-fields label { display: block; font-weight: 700; font-size: 12px; margin-bottom: 6px; }
+.badge-fields input, .badge-fields select { width: 100%; padding: 11px; border: 1px solid #b5c3b9; border-radius: 4px; background: #fbfcfa; font-size: 16px; }
+.badge-lookup button:disabled { opacity: .5; cursor: wait; }
+.badge-warning { max-width: 760px; margin: 18px 0 0; }
+.badge-result { margin-top: 14px; padding: 12px; background: #eef3ed; color: #344e3e; border-radius: 4px; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .badge-fields { grid-template-columns: 1fr; } }
+.verification-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 20px; align-items: start; }
+.verification-main { display: grid; gap: 14px; }
+.verification-panel { background: white; border: 1px solid var(--line); border-radius: 6px; padding: 24px; }
+.verification-number { color: var(--blue); font: 800 13px var(--display); }
+.verification-number span { color: #788880; margin-left: 8px; font-size: 10px; }
+.verification-panel h2, .verification-aside h2 { font: 800 20px/1.3 var(--display); margin: 14px 0 8px; }
+.verification-panel p, .verification-aside p { color: #66776e; font-size: 13px; }
+.verification-status { background: #f0f4ee; border-radius: 4px; padding: 12px; color: #455f4c; font-size: 12px; margin-top: 16px; overflow-wrap: anywhere; }
+.verification-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.verification-footnote { font-size: 11px !important; margin-bottom: 0; }
+.verification-panel button:disabled { opacity: .48; cursor: not-allowed; }
+.verification-panel form label { display: block; font-weight: 700; margin: 15px 0 6px; }
+.verification-panel form input { width: 100%; padding: 12px; border: 1px solid #b5c3b9; border-radius: 4px; font-size: 16px; }
+.verification-panel form button { margin-top: 18px; }
+.verification-aside { background: #e8eee8; border-radius: 6px; padding: 24px; }
+.verification-aside .overline { margin-top: 20px; }
+.verification-aside ul { list-style: none; padding: 0; }
+.verification-aside li { border-top: 1px solid #d5e0d5; padding: 12px 0; }
+.verification-aside li strong, .verification-aside li span { display: block; }
+.verification-aside li span { color: #66776e; font-size: 12px; margin-top: 3px; }
+@media (max-width: 800px) { .verification-grid { grid-template-columns: 1fr; } }
 * {
   box-sizing: border-box;
 }
