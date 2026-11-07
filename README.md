@@ -53,7 +53,7 @@ npm start
 This app is a Node.js/Express web app, not a static-only site. Hostinger managed Node.js hosting is available on eligible plans; confirm that your plan includes Node.js applications before deploying. Hostinger's [Node.js deployment guide](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/) covers the current hPanel flow.
 
 1. Push this repository to GitHub and connect it from **hPanel → Websites → Manage → Developer → Node.js** (the exact menu labels can vary). Import `aj0khi/hack-the-change` from the `main` branch.
-2. Select Node.js 22.x or newer. Use the repository root as the application root, `npm ci` as the install command, and `npm start` as the start command. No build command is required. The app binds to `0.0.0.0` and uses the `PORT` supplied by the host.
+2. Select Node.js 22.x or newer. Use the repository root as the application root, `server.mjs` as the entry file, `npm ci` as the install command, and `npm start` as the start command if requested. No build command is required. The app binds to `0.0.0.0` and uses the `PORT` supplied by the host.
 3. Assign the temporary domain in hPanel and wait for HTTPS to be enabled. In the app's environment-variable settings, set `APP_ORIGIN` to the exact HTTPS origin, for example `https://your-temporary-domain` (no trailing slash). Do not set `PORT` yourself if hPanel supplies it.
 4. Add these variables in hPanel; do not commit them to GitHub:
 
