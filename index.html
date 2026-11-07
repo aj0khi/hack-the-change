@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7f3">
+  <title>Good Neighbour | Find your next little connection</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#discover" aria-label="Good Neighbour home">
+        <span class="brand-mark" aria-hidden="true"><i data-lucide="heart-handshake"></i></span>
+        <span>good<span class="brand-accent">neighbour</span><small>CALGARY, AB</small></span>
+      </a>
+      <div class="sidebar-label">YOUR SPACE</div>
+      <nav class="navigation" aria-label="Main navigation">
+        <a class="nav-link active" href="#discover"><i data-lucide="compass" aria-hidden="true"></i> Discover <i class="nav-arrow" data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+        <a class="nav-link" href="#my-plan"><i data-lucide="bookmark" aria-hidden="true"></i> My little plan <span class="nav-count" data-saved-count>0</span></a>
+        <a class="nav-link" href="#support"><i data-lucide="life-buoy" aria-hidden="true"></i> Find support</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-quote"><span class="quote-star">✳</span><p>A little connection<br>goes a long way.</p><span>MADE FOR CALGARY</span></div>
+        <p class="sidebar-note"><i data-lucide="lock-keyhole" aria-hidden="true"></i> Your plan stays on this device.</p>
+      </div>
+    </aside>
+
+    <main id="main">
+      <header class="topbar"><span><span class="location-dot"></span> YOUR COMMUNITY, A LITTLE CLOSER</span><a href="#support">Need support? <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></header>
+      <div class="content" id="discover">
+        <div class="welcome-line"><span>GOOD TO SEE YOU HERE</span><span>CALGARY, ALBERTA <i data-lucide="map-pin" aria-hidden="true"></i></span></div>
+        <section class="intro" aria-labelledby="page-title">
+          <div class="intro-copy"><div class="eyebrow"><span></span> A LITTLE MORE TOGETHER</div><h1 id="page-title">Find your people,<br><em>at your own pace.</em></h1><p>Connection doesn't have to be a big leap. Find one small way to feel more at home in your community.</p><a class="button button-dark" href="#explore">Explore connections <i data-lucide="arrow-down-right" aria-hidden="true"></i></a></div>
+          <div class="intro-image"><img src="https://www.calgarylibrary.ca/assets/events-and-programs/events/Side-by-side-block/720x560_digital_seniors-drop-in-social-club__ScaleMaxWidthWzE4MDBd.jpg" alt=""><div class="image-label"><span class="image-label-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span>GOOD THINGS HAPPEN<br><strong>when we show up.</strong></span></div></div>
+        </section>
+
+        <section class="explore-section" id="explore" aria-labelledby="explore-title">
+          <div class="section-heading"><div><div class="eyebrow"><span></span> FIND YOUR FIRST STEP</div><h2 id="explore-title">What feels right today?</h2><p>No pressure, no perfect plan. Just start where you are.</p></div><div class="heading-side">A LITTLE SOMETHING<br><strong>for everyone <span>↙</span></strong></div></div>
+          <div class="filters" role="group" aria-label="Filter connections">
+            <button type="button" class="filter active" data-filter="all" aria-pressed="true">All ideas <span>✳</span></button>
+            <button type="button" class="filter" data-filter="meet" aria-pressed="false">Meet people</button>
+            <button type="button" class="filter" data-filter="learn" aria-pressed="false">Learn together</button>
+            <button type="button" class="filter" data-filter="support" aria-pressed="false">Find support</button>
+          </div>
+          <div class="results-line"><span id="results-count"></span><span>CURATED FOR CALGARY</span></div>
+          <div id="resource-list" class="resource-grid"></div>
+          <p class="directory-note">Programs and availability can change. Check the provider's page for current details.</p>
+        </section>
+
+        <section class="plan-section" id="my-plan" aria-labelledby="plan-title">
+          <div class="section-heading plan-heading"><div><div class="eyebrow"><span></span> ONE STEP AT A TIME</div><h2 id="plan-title">Your little plan<span class="plan-flower"> ✳</span></h2><p>Keep the things you'd like to come back to in one place.</p></div><div class="plan-count"><strong data-saved-count>0</strong><span>SAVED<br>FOR LATER</span></div></div>
+          <div id="plan-list"></div>
+          <p class="privacy-line"><i data-lucide="lock-keyhole" aria-hidden="true"></i> Saved only in this browser on this device. Clearing browser data removes your plan.</p>
+        </section>
+
+        <section class="support-band" id="support"><div><div class="eyebrow light"><span></span> YOU DON'T HAVE TO FIGURE IT OUT ALONE</div><h2>Need a little more support?</h2><p>Find mental health and community support resources through the City of Calgary.</p></div><a class="button button-light" href="https://www.calgary.ca/social-services/mental-health/resources.html" target="_blank" rel="noopener noreferrer">Find support <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></section>
+        <footer><span><strong>goodneighbour</strong> <span class="footer-dot">✳</span> A LITTLE MORE TOGETHER</span><span>MADE FOR THE PLACE WE CALL HOME.</span></footer>
+      </div>
+    </main>
+  </div>
+  <div class="sr-only" id="announcement" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
