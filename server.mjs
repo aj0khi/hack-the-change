@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createApp } from './server-app.mjs';
 import { createVerificationStore } from './verification/verification-store.mjs';
-import { createGeminiGenerator } from './lens/gemini.mjs';
+import { createBedrockGenerator, DEFAULT_BEDROCK_MODEL, DEFAULT_BEDROCK_REGION } from './lens/bedrock.mjs';
 import { loadJobs } from './lens/adzuna.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -31,9 +31,9 @@ const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SEC
 const store = createVerificationStore(process.env.VERIFICATION_DB || join(root, 'verification', 'verification.sqlite'));
 
 // Employer Lens: AI model, Calgary jobs (cached in data/), and saved lens answers (data/lens-cache.json).
-const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-const generate = await createGeminiGenerator({ apiKey: process.env.GEMINI_API_KEY, model });
-if (!generate) console.warn('[lens] GEMINI_API_KEY not set; the lens will use offline keyword matching.');
+const model = process.env.BEDROCK_MODEL_ID || DEFAULT_BEDROCK_MODEL;
+const generate = await createBedrockGenerator({ modelId: model, region: process.env.AWS_REGION || DEFAULT_BEDROCK_REGION });
+if (!generate) console.warn('[lens] No AWS credentials set; the lens will use offline keyword matching.');
 const jobsReady = loadJobs({ appId: process.env.ADZUNA_APP_ID, appKey: process.env.ADZUNA_APP_KEY, cachePath: join(root, 'data', 'adzuna-cache.json') });
 const lensCachePath = join(root, 'data', 'lens-cache.json');
 let lensCache = new Map();

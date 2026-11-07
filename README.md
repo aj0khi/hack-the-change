@@ -83,26 +83,26 @@ index.html, app.js    the single-page app (all views)
 styles.css            shared styles
 trust.mjs             Ed25519 signing, verification and grounding (browser + Node)
 lens/                 Employer Lens feature
-  lens.mjs              verify credentials → one Gemini call → code-side grounding
-  gemini.mjs            @google/genai wrapper (JSON schema, timeout, retry)
+  lens.mjs              verify credentials → one AI call → code-side grounding
+  bedrock.mjs           Amazon Bedrock (Nova Lite) via the Converse API, forced JSON tool output
   adzuna.mjs            Calgary postings from Adzuna, cached to data/
   projects.mjs          community project catalog (browser + server)
   skills.mjs            Skills for Success keyword rules + Calgary demand counts
   lens.css              lens-only styles, loaded after styles.css
-  *.test.mjs            lens and route tests (Gemini mocked)
+  *.test.mjs            lens, Bedrock and route tests (AI mocked)
 verification/         account and organization verification (Auth0, Stripe Identity, Badgr, SQLite)
 data/                 local caches: adzuna-cache.json, lens-cache.json (git-ignored)
 ```
 
-## Employer Lens Setup (Gemini + Adzuna)
+## Employer Lens Setup
 
-Add `GEMINI_API_KEY`, `GEMINI_MODEL`, `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` to `.env` (see `.env.example`). `npm start` loads `.env` when present. Without these keys the lens uses clearly labelled offline keyword matching and the Calgary job picker stays hidden.
+The lens uses Amazon Bedrock with Amazon Nova Lite (`us.amazon.nova-lite-v1:0` by default). In `.env` (see `.env.example`), set either `AWS_BEARER_TOKEN_BEDROCK` (a Bedrock API key) or `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` (an IAM user with `bedrock:InvokeModel`), plus `AWS_REGION` (default `us-east-1`) and optionally `BEDROCK_MODEL_ID`. Nova models must be enabled under **Bedrock → Model access** in that region. Add `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` for the Calgary job picker. `npm start` loads `.env` when present. Without these keys the lens uses clearly labelled offline keyword matching and the Calgary job picker stays hidden.
 
-- `POST /api/lens` (`lens/lens.mjs`): verifies every credential's signature, makes one Gemini call that extracts requirements and proposes matches, then keeps a match only if its quote is word-for-word in the cited, valid credential (praise never satisfies a technical or credential requirement). Rejected proposals are returned and shown in the UI. Gemini errors or a 26 s timeout return `{ fallback: true }`. The server allows 20 new lens requests a minute.
+- `POST /api/lens` (`lens/lens.mjs`): verifies every credential's signature, makes one Bedrock call that extracts requirements and proposes matches, then keeps a match only if its quote is word-for-word in the cited, valid credential (praise never satisfies a technical or credential requirement). Rejected proposals are returned and shown in the UI. Model errors or a 26 s timeout return `{ fallback: true }`. The server allows 20 new lens requests a minute.
 - `GET /api/jobs` (`lens/adzuna.mjs`): at startup fetches a few Calgary searches from Adzuna's Canada endpoint and caches them to `data/adzuna-cache.json` for 12 hours. Adzuna search results usually carry a truncated description; the UI says so and links to the full posting. Adzuna currently returns 500-character excerpts, so paste a full posting when you want a thorough check.
-- **Student view and project suggestions:** the lens results have an "Employer view / Student view" toggle. In Student view, each soft or technical gap lists up to two community projects that would build that skill. Gemini picks them in the same call, but only from the fixed catalog in `lens/projects.mjs`. Code drops any unknown project, and any suggestion for a requirement that already has evidence or is a credential or availability requirement.
+- **Student view and project suggestions:** the lens results have an "Employer view / Student view" toggle. In Student view, each soft or technical gap lists up to two community projects that would build that skill. The model picks them in the same call, but only from the fixed catalog in `lens/projects.mjs`. Code drops any unknown project, and any suggestion for a requirement that already has evidence or is a credential or availability requirement.
 - **Calgary demand:** `/api/jobs` also returns `demand`, a count of how many cached postings mention each Skills for Success skill, using the keyword rules in `lens/skills.mjs`. Suggestions show it as "mentioned in N of 30 Calgary posting excerpts". Because the counts come from excerpts, they undercount.
-- **Saved results and quota:** a successful lens answer for the same posting and credentials is saved in `data/lens-cache.json` and reused, marked "saved result", even after a restart. The Gemini free tier allows about 20 requests a day per model, so before judging either enable billing on the Google project or run each demo posting once to pre-save it. Saved results only match on the same browser profile, because the credentials and issuer key live in that browser.
+- **Saved results and quota:** a successful lens answer for the same posting and credentials is saved in `data/lens-cache.json` and reused, marked "saved result", even after a restart. Bedrock is billed per token against your AWS credits (Nova Lite is one of the cheapest models); saving results also keeps demo re-runs instant. Saved results only match on the same browser profile, because the credentials and issuer key live in that browser.
 
 ## Account Verification Setup
 
@@ -135,7 +135,7 @@ The first launch creates a signed fictional example. Removing browser site data 
 
 - People, organizations, projects, and the example job are fictional. The simulated approval has no authentication and does not prove that a real organization or person approved anything.
 - The signature is a compact Ed25519 JWS with a non-extractable private key stored in IndexedDB. This is a tamper-evident demo, **not** an Open Badges 3.0 credential or a production issuer identity. Code running on the same origin can request signatures; real deployment needs server-side key management, authenticated issuers, public key discovery, revocation, and access controls.
-- The lens uses local keyword rules against valid signed credentials, not Gemini, semantic analysis, or a hiring recommendation. Skill selections are made by the witness and are not independently validated; exact quotes are checked against the transcript, which does not establish that the selected skill is actually demonstrated.
+- The lens uses Amazon Nova Lite to extract requirements and propose matches, with a code-side word-for-word grounding check; it falls back to local keyword rules when the model is unavailable. It is not a hiring recommendation. Skill selections are made by the witness and are not independently validated; exact quotes are checked against the transcript, which does not establish that the selected skill is actually demonstrated.
 - Browser speech recognition is optional and may transmit audio to the browser's speech provider. Review its privacy policy before using it. Typing is available; the app does not record or store audio itself. Avoid entering sensitive information.
 - There is no Postgres, public sharing, actual partner organization integration, or production backing issuance. These need separate infrastructure, credentials, consent, and partner validation.
 - The nine skill labels follow the [Skills for Success model](https://alis.alberta.ca/inspire-and-motivate/the-9-skills-for-success/the-skills-for-success-model). They are not officially assessed or endorsed.

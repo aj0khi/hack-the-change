@@ -12,7 +12,7 @@ export const MODEL_TIMEOUT_MS = 26000;
 const KINDS = ["soft", "technical", "credential", "other"];
 const EVIDENCE_TYPES = ["action", "praise"];
 
-// Standard JSON Schema, sent as Gemini responseJsonSchema.
+// Standard JSON Schema; lens/bedrock.mjs sends it as the input schema of a forced tool call.
 export const lensSchema = {
   type: "object",
   properties: {

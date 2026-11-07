@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@auth0/auth0-spa-js": "^2.30.0",
-    "@google/genai": "^3.0.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1164.0",
     "express": "^4.21.2",
     "express-oauth2-jwt-bearer": "^1.7.1",
     "express-rate-limit": "^7.5.0",
