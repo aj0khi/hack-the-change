@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from './server.mjs';
+import { createApp } from './server-app.mjs';
 import { createVerificationStore } from './verification-store.mjs';
 
 test('verification fails closed and never promotes test identities or self-submitted organizations', async () => {
