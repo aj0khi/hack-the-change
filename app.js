@@ -71,8 +71,18 @@ const skillTerms = {
   Numeracy: /\b(numeracy|numerical|calculat\w*|math\w*)\b/i,
   "Creativity and innovation": /\b(creativ\w*|innovat\w*)\b/i,
 };
-const jobExample =
-  "Strong communication and interpersonal skills\nComfort using digital tools and technology\nExperience with project management\nAbility to troubleshoot and solve problems";
+const jobExample = `Client Support Coordinator (Junior) — Bow River Community Services (fictional example), Calgary, AB
+
+We're looking for a warm, organized person to join our front-desk technology team. You'll be the first point of contact for older adults and newcomers who need help with our online booking system, video appointments and shared devices.
+
+What you'll do:
+You will walk clients through using tablets, phones and video-call apps, explaining technical steps in plain language and staying patient when things don't work the first time. You'll create simple how-to guides and checklists for clients and staff, and keep our volunteer and appointment spreadsheets accurate and up to date.
+
+What we're looking for:
+Excellent communication skills with people of all ages and comfort levels with technology. Experience writing clear instructions or documentation. Comfort with spreadsheets (Excel or Google Sheets). Basic SQL or database experience is an asset. A valid Class 5 Alberta driver's licence and a clean police information check are required. CompTIA A+ certification is considered an asset. Availability for some evening and weekend shifts.
+
+We offer a supportive team, paid training and a transit pass.`;
+let jobPostings = [];
 const viewNames = {
   overview: "Overview",
   projects: "Explore projects",
@@ -248,23 +258,86 @@ async function openCredential(index) {
   refreshIcons();
 }
 
+const gapMarkup = (text, kind) =>
+  `<div class="lens-result"><div class="lens-result-top"><span class="result-status gap">${icon("minus")}</span><h3>${escapeHTML(text)}${kind ? ` <span class="kind-tag">${escapeHTML(kind)}</span>` : ""}</h3></div><p class="result-desc">No verified evidence yet. This is not a judgment of ability.</p></div>`;
+
+function renderAiLens(data, target) {
+  const { stats } = data;
+  const summary = `<div class="lens-summary" role="status"><strong>${stats.matched} of ${stats.total}</strong> requirement${stats.total === 1 ? "" : "s"} ${stats.matched === 1 ? "has" : "have"} verified evidence <span class="lens-source">AI · ${escapeHTML(data.model)} · ${stats.validCredentials} signed credential${stats.validCredentials === 1 ? "" : "s"} checked</span></div>`;
+  const rows = data.requirements
+    .map((requirement) => {
+      if (!requirement.matches.length)
+        return gapMarkup(requirement.text, requirement.kind);
+      return `<div class="lens-result"><div class="lens-result-top"><span class="result-status">${icon("check")}</span><h3>${escapeHTML(requirement.text)} <span class="kind-tag">${escapeHTML(requirement.kind)}</span></h3></div>${requirement.matches
+        .map(
+          (match) =>
+            `<div class="lens-evidence"><p class="result-desc"><span class="evidence-tag ${match.evidenceType === "action" ? "action" : "praise"}">${match.evidenceType === "action" ? "WHAT THEY DID" : "PRAISE"}</span> “${escapeHTML(match.quote)}” <span class="lens-witness">— ${escapeHTML(match.witness)}, via ${escapeHTML(match.issuer)}</span></p>${match.why ? `<p class="result-desc lens-why">${escapeHTML(match.why)}</p>` : ""}<button class="text-link" type="button" data-credential="${escapeHTML(match.credentialId)}">See the signed evidence ${icon("arrow-up-right")}</button></div>`,
+        )
+        .join("")}</div>`;
+    })
+    .join("");
+  const rejected = data.rejected?.length
+    ? `<details class="lens-rejected"><summary>Show what the AI proposed that we rejected (${data.rejected.length})</summary>${data.rejected
+        .map(
+          (item) =>
+            `<div class="rejected-item"><p><strong>${escapeHTML(item.requirement)}</strong></p><p class="result-desc">Proposed: “${escapeHTML(item.quote || "(no quote)")}” from credential ${escapeHTML(item.credentialId || "?")}</p><p class="result-desc rejected-reason">${icon("x")} ${escapeHTML(item.reason)}</p></div>`,
+        )
+        .join("")}</details>`
+    : `<p class="lens-clean">Grounding check: every AI-proposed quote matched its signed credential word-for-word.</p>`;
+  target.className = "";
+  target.innerHTML = summary + rows + rejected;
+  announce(`${stats.matched} of ${stats.total} requirements have verified evidence.`);
+}
+
 async function analyzeJob() {
   const input = document.querySelector("#job-description").value.trim();
   const target = document.querySelector("#lens-results");
+  const button = document.querySelector("#analyze-job");
   if (!input) {
     target.className = "lens-empty";
     target.innerHTML =
-      "<h2>Add a job description first.</h2><p>Enter one requirement per line.</p>";
+      "<h2>Add a job posting first.</h2><p>Paste the whole posting, or pick an example.</p>";
     return;
   }
+  target.className = "lens-empty";
+  target.setAttribute("aria-busy", "true");
+  target.innerHTML = `<span class="lens-spinner">${icon("loader-circle")}</span><h2>Reading the posting…</h2><p>Extracting requirements and checking every quote against signed credentials.</p>`;
+  refreshIcons();
+  button.disabled = true;
+  let data;
+  try {
+    const response = await fetch("/api/lens", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        posting: input,
+        credentials,
+        issuerPublicKey: issuer?.publicKey ?? "",
+      }),
+    });
+    data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Lens request failed");
+  } catch {
+    data = { fallback: true };
+  } finally {
+    button.disabled = false;
+    target.removeAttribute("aria-busy");
+  }
+  if (!data.fallback && Array.isArray(data.requirements)) renderAiLens(data, target);
+  else await keywordLens(input, target);
+  refreshIcons();
+}
+
+// Offline fallback: the original regex lens, clearly labelled.
+async function keywordLens(input, target) {
   const lines = input
-    .split(/\n+/)
+    .split(/\n+|(?<=[.!?])\s+/)
     .map((line) => line.replace(/^\s*[-•*]\s*/, "").trim())
-    .filter(Boolean)
+    .filter((line) => line.length > 3)
     .slice(0, 20);
   const validCredentials = await verifiedCredentials();
   target.className = "";
-  target.innerHTML = lines
+  target.innerHTML = `<div class="lens-summary offline" role="status"><strong>Offline keyword matching</strong> <span class="lens-source">The AI lens is unavailable, so this uses simple keyword rules. Results are rougher.</span></div>` + lines
     .map((line) => {
       const matched = validCredentials
         .flatMap((credential) =>
@@ -323,6 +396,44 @@ document.querySelector("#verify-token").addEventListener("click", async () => {
 });
 document.querySelector("#example-job").addEventListener("click", () => {
   document.querySelector("#job-description").value = jobExample;
+  document.querySelector("#job-select").value = "";
+  document.querySelector("#job-source").textContent = "";
+  analyzeJob();
+});
+
+async function loadJobPostings() {
+  try {
+    const response = await fetch("/api/jobs");
+    if (!response.ok) return;
+    const data = await response.json();
+    jobPostings = Array.isArray(data.jobs) ? data.jobs : [];
+    if (!jobPostings.length) return;
+    const select = document.querySelector("#job-select");
+    select.insertAdjacentHTML(
+      "beforeend",
+      jobPostings
+        .map(
+          (job, index) =>
+            `<option value="${index}">${escapeHTML(job.title)} — ${escapeHTML(job.company || "Unknown employer")}</option>`,
+        )
+        .join(""),
+    );
+    document.querySelector("#job-picker").hidden = false;
+  } catch {
+    /* static hosting or offline: picker stays hidden */
+  }
+}
+
+document.querySelector("#job-select").addEventListener("change", (event) => {
+  const job = jobPostings[Number(event.target.value)];
+  const source = document.querySelector("#job-source");
+  if (!job || event.target.value === "") {
+    source.textContent = "";
+    return;
+  }
+  document.querySelector("#job-description").value =
+    `${job.title} — ${job.company}, ${job.location}\n\n${job.description}`;
+  source.innerHTML = `Live posting via Adzuna${job.snippet ? " (Adzuna shares a short excerpt; paste the full text for a fuller check)" : ""}. ${job.url ? `<a href="${escapeHTML(job.url)}" target="_blank" rel="noopener noreferrer">Open the full posting</a>` : ""}`;
   analyzeJob();
 });
 document.querySelector("#analyze-job").addEventListener("click", analyzeJob);
@@ -449,3 +560,4 @@ document.querySelector("#voice-button").addEventListener("click", () => {
 renderProjects();
 showView(location.hash.slice(1) || "overview");
 initialize();
+loadJobPostings();

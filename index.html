@@ -317,14 +317,21 @@
                 </div>
                 <h2>What are you looking for?</h2>
                 <p>
-                  Paste a job description or use the example to explore the
-                  lens.
+                  Paste your full job posting, pick a live Calgary posting, or
+                  use the example.
                 </p>
-                <label for="job-description">JOB DESCRIPTION</label
+                <div class="job-picker" id="job-picker" hidden>
+                  <label for="job-select">PICK A REAL CALGARY JOB</label
+                  ><select id="job-select">
+                    <option value="">Choose a posting from Adzuna…</option>
+                  </select>
+                  <p class="job-source" id="job-source"></p>
+                </div>
+                <label for="job-description">JOB POSTING</label
                 ><textarea
                   id="job-description"
                   rows="9"
-                  placeholder="Paste requirements, one per line..."
+                  placeholder="Paste the whole posting: paragraphs are fine."
                 ></textarea>
                 <div class="lens-buttons">
                   <button type="button" class="button primary" id="analyze-job">
@@ -334,8 +341,10 @@
                   </button>
                 </div>
                 <div class="lens-disclaimer">
-                  <i data-lucide="info"></i> Local keyword matching, not AI or a
-                  hiring recommendation. Review every source and gap yourself.
+                  <i data-lucide="info"></i> AI extracts requirements and
+                  proposes matches; every quote is checked word-for-word
+                  against a signed credential before it's shown. Gaps are never
+                  filled by AI. Not a hiring recommendation.
                 </div>
               </div>
               <div class="lens-output">

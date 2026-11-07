@@ -1499,3 +1499,138 @@ dialog::backdrop {
     scroll-behavior: auto;
   }
 }
+
+/* Employer Lens: AI results */
+.job-picker {
+  margin-bottom: 16px;
+}
+.job-picker select {
+  display: block;
+  width: 100%;
+  border: 1px solid #d9e1d9;
+  border-radius: 4px;
+  background: #fbfcfa;
+  color: var(--ink);
+  padding: 11px 12px;
+  font-size: 14px;
+}
+.job-source {
+  color: #5b6862;
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+.job-source a {
+  color: var(--blue-dark);
+}
+.lens-summary {
+  margin-top: 20px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: #eaf5eb;
+  color: #2f5e45;
+  font-size: 14px;
+}
+.lens-summary.offline {
+  background: #fdf3e3;
+  color: #6b4a12;
+}
+.lens-source {
+  display: block;
+  font-size: 12px;
+  color: #4f5c56;
+  margin-top: 2px;
+}
+.lens-summary + .lens-result {
+  margin-top: 12px;
+}
+.kind-tag {
+  font: 600 11px var(--font);
+  color: #4f5c56;
+  background: #f1f2ef;
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-left: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: 1px;
+}
+.lens-evidence {
+  margin-bottom: 8px;
+}
+.lens-evidence .result-desc,
+.rejected-item .result-desc {
+  color: #3f4a45;
+  font-size: 13px;
+}
+.lens-why {
+  color: #5b6862 !important;
+  font-size: 12px !important;
+}
+.lens-witness {
+  color: #5b6862;
+}
+.evidence-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-right: 4px;
+}
+.evidence-tag.action {
+  background: #e3effc;
+  color: #1f4a8a;
+}
+.evidence-tag.praise {
+  background: #f4ecfb;
+  color: #5c3487;
+}
+.lens-rejected {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  font-size: 13px;
+}
+.lens-rejected summary {
+  cursor: pointer;
+  color: var(--blue-dark);
+  font-weight: 600;
+}
+.rejected-item {
+  border-left: 3px solid #e4b4ad;
+  padding: 4px 0 4px 10px;
+  margin-top: 12px;
+}
+.rejected-item p {
+  margin: 0 0 4px;
+}
+.rejected-item .result-desc {
+  margin-left: 0;
+}
+.rejected-reason {
+  color: #9a3428 !important;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.rejected-reason svg {
+  width: 13px;
+}
+.lens-clean {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  color: #2f5e45;
+  font-size: 13px;
+}
+.lens-spinner svg {
+  animation: lens-spin 1s linear infinite;
+}
+@keyframes lens-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lens-spinner svg {
+    animation: none;
+  }
+}
