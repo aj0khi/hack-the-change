@@ -2,4 +2,7 @@ node_modules/
 .env
 *.sqlite
 *.sqlite-shm
-*.sqlite-wal
+*.sqlite-wal.DS_Store
+xcuserdata/
+DerivedData/
+*.xcuserstate
