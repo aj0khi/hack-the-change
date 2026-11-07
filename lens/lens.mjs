@@ -1,6 +1,6 @@
 // Employer Lens core: verify credentials, ask the model, then ground every match in code.
 // The model is injected (`generate`) so tests can run offline with a mock.
-import { verifyCredential } from "./trust.mjs";
+import { verifyCredential } from "../trust.mjs";
 import { projects as defaultCatalog } from "./projects.mjs";
 
 export const MAX_SUGGESTIONS = 2;

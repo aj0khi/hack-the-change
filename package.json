@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node --env-file-if-exists=.env server.mjs",
-    "test": "node --test *.test.mjs"
+    "test": "node --test *.test.mjs lens/*.test.mjs verification/badgr.test.mjs verification/verification-policy.test.mjs"
   },
   "dependencies": {
     "@auth0/auth0-spa-js": "^2.30.0",

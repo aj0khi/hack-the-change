@@ -50,7 +50,7 @@ npm start
 
 ## Deploy to Hostinger
 
-This app is a Node.js/Express web app, not a static-only site. Hostinger managed Node.js hosting is available on eligible plans; confirm that your plan includes Node.js applications before deploying. Hostinger's [Node.js deployment guide](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/) covers the current hPanel flow.
+This app is a Node.js web app (built-in `node:http`, no framework), not a static-only site. Hostinger managed Node.js hosting is available on eligible plans; confirm that your plan includes Node.js applications before deploying. Hostinger's [Node.js deployment guide](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/) covers the current hPanel flow.
 
 1. Push this repository to GitHub and connect it from **hPanel → Websites → Manage → Developer → Node.js** (the exact menu labels can vary). Import `aj0khi/hack-the-change` from the `main` branch.
 2. Select Node.js 22.x or newer. Use the repository root as the application root, `npm ci` as the install command, and `npm start` as the start command. No build command is required. The app binds to `0.0.0.0` and uses the `PORT` supplied by the host.
@@ -66,6 +66,7 @@ This app is a Node.js/Express web app, not a static-only site. Hostinger managed
    | `STRIPE_SECRET_KEY` | Optional; use a Stripe test key for a demo, or leave unset |
    | `VERIFICATION_DB` | Optional; a writable persistent path if your plan provides one |
 
+   Account verification is currently parked in `verification/` and not connected to the server, so the Auth0, Stripe and `VERIFICATION_DB` variables have no effect until it is wired back in. The lens needs `GEMINI_API_KEY`, `GEMINI_MODEL`, `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`.
 5. In Auth0, add `https://your-temporary-domain/` to **Allowed Callback URLs** and **Allowed Logout URLs**, and `https://your-temporary-domain` to **Allowed Web Origins**. Keep the existing API Identifier as `AUTH0_AUDIENCE`; it does not need to be your website domain.
 6. Save the variables and redeploy/restart the app. Check `https://your-temporary-domain/healthz` returns `{"status":"ok"}`, then open the site and test the demo and sign-in.
 
@@ -73,14 +74,33 @@ For local development, `.env` is ignored by Git; `.env.example` contains placeho
 
 The local SQLite database is not a production database. If you enable account verification, use a persistent writable database path only for a temporary prototype, and be aware that data can be lost when a hosting plan replaces or resets application files. The current identity and organization verification flows are not production-ready; see [Boundaries](#boundaries) before collecting real identity information.
 
+## Project Layout
+
+```
+server.mjs            node:http server: static files, /api/lens, /api/jobs, /healthz
+index.html, app.js    the single-page app (all views)
+styles.css            shared styles
+trust.mjs             Ed25519 signing, verification and grounding (browser + Node)
+lens/                 Employer Lens feature
+  lens.mjs              verify credentials → one Gemini call → code-side grounding
+  gemini.mjs            @google/genai wrapper (JSON schema, timeout, retry)
+  adzuna.mjs            Calgary postings from Adzuna, cached to data/
+  projects.mjs          community project catalog (browser + server)
+  skills.mjs            Skills for Success keyword rules + Calgary demand counts
+  lens.css              lens-only styles, loaded after styles.css
+  *.test.mjs            lens and route tests (Gemini mocked)
+verification/         account and organization verification (parked; not wired into server.mjs)
+data/                 local caches: adzuna-cache.json, lens-cache.json (git-ignored)
+```
+
 ## Employer Lens Setup (Gemini + Adzuna)
 
 Add `GEMINI_API_KEY`, `GEMINI_MODEL`, `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` to `.env` (see `.env.example`). `server.mjs` also loads `.env` itself, so plain `npm start` works. Without these keys the lens uses clearly labelled offline keyword matching and the Calgary job picker stays hidden.
 
-- `POST /api/lens` (`lens.mjs`): verifies every credential's signature, makes one Gemini call that extracts requirements and proposes matches, then keeps a match only if its quote is word-for-word in the cited, valid credential (praise never satisfies a technical or credential requirement). Rejected proposals are returned and shown in the UI. Gemini errors or a 15 s timeout return `{ fallback: true }`.
-- `GET /api/jobs` (`adzuna.mjs`): at startup fetches a few Calgary searches from Adzuna's Canada endpoint and caches them to `data/adzuna-cache.json` for 12 hours. Adzuna search results usually carry a truncated description; the UI says so and links to the full posting. Adzuna currently returns 500-character excerpts, so paste a full posting when you want a thorough check.
-- **Student view and project suggestions:** the lens results have an "Employer view / Student view" toggle. In Student view, each soft or technical gap lists up to two community projects that would build that skill. Gemini picks them in the same call, but only from the fixed catalog in `projects.mjs`. Code drops any unknown project, and any suggestion for a requirement that already has evidence or is a credential or availability requirement.
-- **Calgary demand:** `/api/jobs` also returns `demand`, a count of how many cached postings mention each Skills for Success skill, using the keyword rules in `skills.mjs`. Suggestions show it as "mentioned in N of 30 Calgary posting excerpts". Because the counts come from excerpts, they undercount.
+- `POST /api/lens` (`lens/lens.mjs`): verifies every credential's signature, makes one Gemini call that extracts requirements and proposes matches, then keeps a match only if its quote is word-for-word in the cited, valid credential (praise never satisfies a technical or credential requirement). Rejected proposals are returned and shown in the UI. Gemini errors or a 26 s timeout return `{ fallback: true }`. The server allows 20 new lens requests a minute.
+- `GET /api/jobs` (`lens/adzuna.mjs`): at startup fetches a few Calgary searches from Adzuna's Canada endpoint and caches them to `data/adzuna-cache.json` for 12 hours. Adzuna search results usually carry a truncated description; the UI says so and links to the full posting. Adzuna currently returns 500-character excerpts, so paste a full posting when you want a thorough check.
+- **Student view and project suggestions:** the lens results have an "Employer view / Student view" toggle. In Student view, each soft or technical gap lists up to two community projects that would build that skill. Gemini picks them in the same call, but only from the fixed catalog in `lens/projects.mjs`. Code drops any unknown project, and any suggestion for a requirement that already has evidence or is a credential or availability requirement.
+- **Calgary demand:** `/api/jobs` also returns `demand`, a count of how many cached postings mention each Skills for Success skill, using the keyword rules in `lens/skills.mjs`. Suggestions show it as "mentioned in N of 30 Calgary posting excerpts". Because the counts come from excerpts, they undercount.
 - **Saved results and quota:** a successful lens answer for the same posting and credentials is saved in `data/lens-cache.json` and reused, marked "saved result", even after a restart. The Gemini free tier allows about 20 requests a day per model, so before judging either enable billing on the Google project or run each demo posting once to pre-save it. Saved results only match on the same browser profile, because the credentials and issuer key live in that browser.
 
 ## Account Verification Setup
@@ -116,9 +136,9 @@ The first launch creates a signed fictional example. Removing browser site data 
 - The signature is a compact Ed25519 JWS with a non-extractable private key stored in IndexedDB. This is a tamper-evident demo, **not** an Open Badges 3.0 credential or a production issuer identity. Code running on the same origin can request signatures; real deployment needs server-side key management, authenticated issuers, public key discovery, revocation, and access controls.
 - The lens uses local keyword rules against valid signed credentials, not Gemini, semantic analysis, or a hiring recommendation. Skill selections are made by the witness and are not independently validated; exact quotes are checked against the transcript, which does not establish that the selected skill is actually demonstrated.
 - Browser speech recognition is optional and may transmit audio to the browser's speech provider. Review its privacy policy before using it. Typing is available; the app does not record or store audio itself. Avoid entering sensitive information.
-- There is no live Adzuna data, Gemini integration, Postgres, public sharing, actual partner organization integration, or production backing issuance. These need separate infrastructure, credentials, consent, and partner validation.
+- There is no Postgres, public sharing, actual partner organization integration, or production backing issuance. These need separate infrastructure, credentials, consent, and partner validation.
 - The nine skill labels follow the [Skills for Success model](https://alis.alberta.ca/inspire-and-motivate/the-9-skills-for-success/the-skills-for-success-model). They are not officially assessed or endorsed.
 
 ## Checks
 
-Run all trust, eligibility, and verification API tests with `npm test`. The API tests use simulated Auth0 and Stripe providers; real provider integration requires configured accounts and has not been exercised by these tests.
+Run the trust, lens and eligibility tests with `npm test` (Gemini is mocked, so they run offline). `verification/server.test.mjs` tests the old Express verification routes and is left out of `npm test` until those routes are wired back into `server.mjs`.

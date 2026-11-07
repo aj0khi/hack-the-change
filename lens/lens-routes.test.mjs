@@ -1,14 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from './server.mjs';
-import { createVerificationStore } from './verification-store.mjs';
-import { createIssuer, signCredential } from './trust.mjs';
+import { createLensServer } from '../server.mjs';
+import { createIssuer, signCredential } from '../trust.mjs';
 
 async function start(options) {
-  const app = createApp({ config: { appOrigin: 'http://localhost:8766' }, store: createVerificationStore(':memory:'), ...options });
-  const server = await new Promise(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
+  const server = createLensServer(options);
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return { server, base: `http://127.0.0.1:${server.address().port}` };
 }
+
+test('serves only the listed static files, including the lens folder', async () => {
+  const { server, base } = await start({});
+  try {
+    for (const path of ['/', '/app.js', '/lens/lens.css', '/lens/projects.mjs', '/lens/skills.mjs', '/verification/verification-ui.mjs'])
+      assert.equal((await fetch(`${base}${path}`)).status, 200, path);
+    for (const path of ['/server.mjs', '/lens/lens.mjs', '/lens/gemini.mjs', '/.env', '/lens/../.env', '/data/lens-cache.json'])
+      assert.equal((await fetch(`${base}${path}`)).status, 404, path);
+    assert.deepEqual(await (await fetch(`${base}/api/config`)).json(), { enabled: false, identityEnabled: false });
+  } finally { server.close(); }
+});
 const post = (base, body) => fetch(`${base}/api/lens`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
 test('/api/lens accepts a full-size posting and returns grounded results', async () => {

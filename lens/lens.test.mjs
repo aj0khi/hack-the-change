@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createIssuer, signCredential, alterCredential } from "./trust.mjs";
+import { createIssuer, signCredential, alterCredential } from "../trust.mjs";
 import { runLens } from "./lens.mjs";
 import { normalizeJob } from "./adzuna.mjs";
 

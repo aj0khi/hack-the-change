@@ -4,8 +4,8 @@ import {
   verifyCredential,
   alterCredential,
 } from "./trust.mjs";
-import { projects } from "./projects.mjs";
-import { skillTerms } from "./skills.mjs";
+import { projects } from "./lens/projects.mjs";
+import { skillTerms } from "./lens/skills.mjs";
 
 const examples = {
   transcript:
