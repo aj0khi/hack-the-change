@@ -47,6 +47,13 @@ npm start
 
 Visit `http://localhost:8766/` in a recent browser with IndexedDB and Ed25519 Web Crypto support. A secure context (localhost or HTTPS) is required. The fictional demo works without an account or API key. Fonts, icons, and the Unsplash image load from third parties.
 
+## Employer Lens Setup (Gemini + Adzuna)
+
+Add `GEMINI_API_KEY`, `GEMINI_MODEL`, `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` to `.env` (see `.env.example`). `server.mjs` also loads `.env` itself, so plain `npm start` works. Without these keys the lens uses clearly labelled offline keyword matching and the Calgary job picker stays hidden.
+
+- `POST /api/lens` (`lens.mjs`): verifies every credential's signature, makes one Gemini call that extracts requirements and proposes matches, then keeps a match only if its quote is word-for-word in the cited, valid credential (praise never satisfies a technical or credential requirement). Rejected proposals are returned and shown in the UI. Gemini errors or a 15 s timeout return `{ fallback: true }`.
+- `GET /api/jobs` (`adzuna.mjs`): at startup fetches a few Calgary searches from Adzuna's Canada endpoint and caches them to `data/adzuna-cache.json` for 12 hours. Adzuna search results usually carry a truncated description; the UI says so and links to the full posting.
+
 ## Account Verification Setup
 
 Account verification remains disabled until hosted providers are configured. Create an Auth0 Single Page Application and an Auth0 API, enable email verification, and add `http://localhost:8766/` to the application's allowed callback URLs, logout URLs, and web origins. Set the API identifier as the audience. Activate Stripe Identity in a Stripe account. Copy `.env.example` to `.env`, configure the values locally without committing secrets, and start with `node --env-file=.env server.mjs`.

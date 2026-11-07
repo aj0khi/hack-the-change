@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { createVerificationStore } from './verification-store.mjs';
 import { inspectBadgrAssertion } from './badgr.mjs';
+import { runLens } from './lens.mjs';
+import { createGeminiGenerator } from './gemini.mjs';
+import { loadJobs } from './adzuna.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 
@@ -31,11 +34,28 @@ function publicStatus(store, subject) {
   };
 }
 
-export function createApp({ config, store, authenticate, getUserInfo, stripe, badgeFetcher }) {
+export function createApp({ config, store, authenticate, getUserInfo, stripe, badgeFetcher, lens = {}, getJobs }) {
   const app = express();
   app.disable('x-powered-by');
   app.use('/api', (_request, response, next) => { response.set('Cache-Control', 'no-store'); next(); });
   app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 100, standardHeaders: true, legacyHeaders: false }));
+
+  // Employer Lens: registered before the global 8kb parser because a full posting plus signed
+  // credentials is larger. Without a model configured, runLens returns { fallback: true }.
+  app.post('/api/lens',
+    rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false }),
+    express.json({ limit: '256kb' }),
+    async (request, response) => {
+      try {
+        const result = await runLens(request.body || {}, { generate: lens.generate, model: lens.model });
+        response.status(result.status).json(result.body);
+      } catch { response.json({ fallback: true }); }
+    });
+  app.get('/api/jobs', async (_request, response) => {
+    try { response.json(getJobs ? await getJobs() : { jobs: [], fetchedAt: null, source: 'none' }); }
+    catch { response.json({ jobs: [], fetchedAt: null, source: 'none' }); }
+  });
+
   app.use(express.json({ limit: '8kb' }));
   app.get('/api/config', (_request, response) => response.json({
     enabled: Boolean(authenticate && getUserInfo),
@@ -140,6 +160,7 @@ export function createApp({ config, store, authenticate, getUserInfo, stripe, ba
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try { process.loadEnvFile(join(root, '.env')); } catch { /* No .env: every integration stays off. */ }
   const port = Number(process.env.PORT || 8766);
   const appOrigin = process.env.APP_ORIGIN || `http://localhost:${port}`;
   const parsedOrigin = new URL(appOrigin);
@@ -156,5 +177,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   } : null;
   const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
   const store = createVerificationStore(process.env.VERIFICATION_DB || join(root, 'verification.sqlite'));
-  createApp({ config, store, authenticate, getUserInfo, stripe }).listen(port, '127.0.0.1', () => console.log(`Vouch verification server: ${appOrigin}`));
+  const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+  const generate = await createGeminiGenerator({ apiKey: process.env.GEMINI_API_KEY, model });
+  if (!generate) console.warn('[lens] GEMINI_API_KEY not set; the lens will use offline keyword matching.');
+  const jobsReady = loadJobs({ appId: process.env.ADZUNA_APP_ID, appKey: process.env.ADZUNA_APP_KEY, cachePath: join(root, 'data', 'adzuna-cache.json') });
+  createApp({ config, store, authenticate, getUserInfo, stripe, lens: { generate, model }, getJobs: () => jobsReady }).listen(port, '127.0.0.1', () => console.log(`Vouch verification server: ${appOrigin}`));
 }
