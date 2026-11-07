@@ -1,9 +1,15 @@
+// Entry file. Starts listening as soon as it is imported (Hostinger imports it rather than running it),
+// so keep everything here at top level. Routes live in server-app.mjs.
 import { auth } from 'express-oauth2-jwt-bearer';
 import Stripe from 'stripe';
+import { readFileSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createApp } from './server-app.mjs';
-import { createVerificationStore } from './verification-store.mjs';
+import { createVerificationStore } from './verification/verification-store.mjs';
+import { createBedrockGenerator, DEFAULT_BEDROCK_MODEL, DEFAULT_BEDROCK_REGION } from './lens/bedrock.mjs';
+import { loadJobs } from './lens/adzuna.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 8766);
@@ -22,5 +28,25 @@ const getUserInfo = configured ? async token => {
   return result.json();
 } : null;
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
-const store = createVerificationStore(process.env.VERIFICATION_DB || join(root, 'verification.sqlite'));
-createApp({ config, store, authenticate, getUserInfo, stripe }).listen(port, '0.0.0.0', () => console.log(`Proofly server listening on port ${port} (${appOrigin})`));
+const store = createVerificationStore(process.env.VERIFICATION_DB || join(root, 'verification', 'verification.sqlite'));
+
+// Employer Lens: AI model, Calgary jobs (cached in data/), and saved lens answers (data/lens-cache.json).
+const model = process.env.BEDROCK_MODEL_ID || DEFAULT_BEDROCK_MODEL;
+const generate = await createBedrockGenerator({ modelId: model, region: process.env.AWS_REGION || DEFAULT_BEDROCK_REGION });
+if (!generate) console.warn('[lens] No AWS credentials set; the lens will use offline keyword matching.');
+const jobsReady = loadJobs({ appId: process.env.ADZUNA_APP_ID, appKey: process.env.ADZUNA_APP_KEY, cachePath: join(root, 'data', 'adzuna-cache.json') });
+const lensCachePath = join(root, 'data', 'lens-cache.json');
+let lensCache = new Map();
+try { lensCache = new Map(Object.entries(JSON.parse(readFileSync(lensCachePath, 'utf8')))); } catch { /* No saved results yet. */ }
+let saveTimer;
+const onLensCacheChange = cache => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    mkdir(dirname(lensCachePath), { recursive: true })
+      .then(() => writeFile(lensCachePath, JSON.stringify(Object.fromEntries(cache))))
+      .catch(error => console.warn(`[lens] could not save results: ${error.message}`));
+  }, 500);
+};
+
+createApp({ config, store, authenticate, getUserInfo, stripe, lens: { generate, model }, getJobs: () => jobsReady, lensCache, onLensCacheChange })
+  .listen(port, '0.0.0.0', () => console.log(`Proofly server listening on port ${port} (${appOrigin})`));

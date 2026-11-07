@@ -3,3 +3,5 @@ node_modules/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+data/adzuna-cache.json
+data/lens-cache.json

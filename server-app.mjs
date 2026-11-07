@@ -1,10 +1,27 @@
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { inspectBadgrAssertion } from './badgr.mjs';
+import { inspectBadgrAssertion } from './verification/badgr.mjs';
+import { runLens } from './lens/lens.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
+const LENS_CACHE_MAX = 100;
+
+// Exact URL → file map for the browser. Nothing else on disk is served.
+const STATIC_FILES = {
+  '/': 'index.html',
+  '/index.html': 'index.html',
+  '/styles.css': 'styles.css',
+  '/app.js': 'app.js',
+  '/trust.mjs': 'trust.mjs',
+  '/lens/lens.css': 'lens/lens.css',
+  '/lens/projects.mjs': 'lens/projects.mjs',
+  '/lens/skills.mjs': 'lens/skills.mjs',
+  '/verification/verification-ui.mjs': 'verification/verification-ui.mjs',
+  '/vendor/auth0.js': 'node_modules/@auth0/auth0-spa-js/dist/auth0-spa-js.production.js',
+};
 
 function safeText(value, maxLength) {
   return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= maxLength ? value.trim() : null;
@@ -28,11 +45,42 @@ function publicStatus(store, subject) {
   };
 }
 
-export function createApp({ config, store, authenticate, getUserInfo, stripe, badgeFetcher }) {
+/**
+ * lens: { generate, model } — generate is null without AI credentials (the lens then falls back offline).
+ * getJobs: async () => Adzuna snapshot for /api/jobs.
+ * lensCache / onLensCacheChange: saved lens answers keyed by request, so re-runs don't spend model quota.
+ */
+export function createApp({ config, store, authenticate, getUserInfo, stripe, badgeFetcher, lens = {}, getJobs, lensCache = new Map(), onLensCacheChange }) {
   const app = express();
   app.disable('x-powered-by');
   app.use('/api', (_request, response, next) => { response.set('Cache-Control', 'no-store'); next(); });
   app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 100, standardHeaders: true, legacyHeaders: false }));
+
+  // Employer Lens: registered before the global 8kb parser because a full posting plus signed
+  // credentials is larger. Identical posting + credentials reuse the last good answer.
+  app.post('/api/lens',
+    rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false }),
+    express.json({ limit: '256kb' }),
+    async (request, response) => {
+      try {
+        const body = request.body || {};
+        const key = createHash('sha256').update(JSON.stringify([body.posting, body.credentials, body.issuerPublicKey])).digest('hex');
+        const hit = lensCache.get(key);
+        if (hit) return response.json({ ...hit, cached: true });
+        const result = await runLens(body, { generate: lens.generate, model: lens.model });
+        if (result.status === 200 && !result.body.fallback) {
+          lensCache.set(key, result.body);
+          if (lensCache.size > LENS_CACHE_MAX) lensCache.delete(lensCache.keys().next().value);
+          onLensCacheChange?.(lensCache);
+        }
+        response.status(result.status).json(result.body);
+      } catch { response.json({ fallback: true }); }
+    });
+  app.get('/api/jobs', async (_request, response) => {
+    try { response.json(getJobs ? await getJobs() : { jobs: [], fetchedAt: null, source: 'none' }); }
+    catch { response.json({ jobs: [], fetchedAt: null, source: 'none' }); }
+  });
+
   app.use(express.json({ limit: '8kb' }));
   app.get('/api/config', (_request, response) => response.json({
     enabled: Boolean(authenticate && getUserInfo),
@@ -125,14 +173,14 @@ export function createApp({ config, store, authenticate, getUserInfo, stripe, ba
     response.status(202).json(publicStatus(store, request.subject));
   });
 
+  app.use('/api', (_request, response) => response.status(404).json({ error: 'Not found' }));
   app.use('/api', (error, _request, response, _next) => {
     if (error.status === 401 || error.status === 403) return response.status(error.status).json({ error: 'Sign in with a valid account.' });
     return response.status(500).json({ error: 'Verification service unavailable.' });
   });
 
-  for (const file of ['index.html', 'styles.css', 'app.js', 'trust.mjs', 'verification-ui.mjs']) {
-    app.get(file === 'index.html' ? ['/', '/index.html'] : `/${file}`, (_request, response) => response.sendFile(join(root, file)));
+  for (const [path, file] of Object.entries(STATIC_FILES)) {
+    app.get(path, (_request, response) => response.sendFile(join(root, file)));
   }
-  app.get('/vendor/auth0.js', (_request, response) => response.sendFile(join(root, 'node_modules/@auth0/auth0-spa-js/dist/auth0-spa-js.production.js')));
   return app;
 }
