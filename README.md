@@ -8,13 +8,13 @@ Each person and their AI agents should update their own section when starting, c
 
 ### Teammate 1
 
-- **Owner:** Unassigned
+- **Owner:** @aj0khi
 - **Status:** Available
 - **Working on:** Not started
 - **Files or areas:** Not assigned
 - **Next step:** Choose a task
 - **Blockers or handoff:** None
-- **Last updated:** Not yet
+- **Last updated:** 2026-11-07
 
 ### Teammate 2
 
