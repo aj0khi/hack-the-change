@@ -65,6 +65,20 @@ final class VouchStore {
         }
     }
 
+    /// Credentials signed by this phone's own key, ready for the website's AI lens
+    /// (the server checks them all against a single issuer public key).
+    func lensSubmission() -> LensSubmission? {
+        guard let key = issuerKey else { return nil }
+        var tokens: [String] = []
+        var ids: [Int] = []
+        for (index, token) in self.tokens.enumerated()
+        where VouchTrust.verify(token, trustedKeys: [key.publicKey]) != nil {
+            tokens.append(token)
+            ids.append(index)
+        }
+        return LensSubmission(tokens: tokens, credentialIDs: ids, publicKeySPKI: VouchTrust.spki(of: key.publicKey))
+    }
+
     /// Returns the payload and the name of the issuer whose key verified it.
     func check(_ token: String) -> (payload: VouchPayload, issuer: String)? {
         if let key = issuerKey, let payload = VouchTrust.verify(token, trustedKeys: [key.publicKey]) {

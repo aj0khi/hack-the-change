@@ -1,11 +1,11 @@
 // ContentView.swift
 // App shell that mirrors the website on a phone: brand header, scrolling section pills,
-// then the current section. Same five sections as the web app.
+// then the current section. Same six sections as the web app (Proofly).
 
 import SwiftUI
 
 nonisolated enum AppTab: String, CaseIterable, Hashable {
-    case overview, projects, credentials, lens, vouch
+    case overview, projects, credentials, lens, vouch, verification
 
     var title: String {
         switch self {
@@ -14,6 +14,7 @@ nonisolated enum AppTab: String, CaseIterable, Hashable {
         case .credentials: "My credentials"
         case .lens: "Employer lens"
         case .vouch: "Give a vouch"
+        case .verification: "Account verification"
         }
     }
 
@@ -24,6 +25,7 @@ nonisolated enum AppTab: String, CaseIterable, Hashable {
         case .credentials: "rosette"
         case .lens: "briefcase"
         case .vouch: "bubble.left.and.text.bubble.right"
+        case .verification: "checkmark.shield"
         }
     }
 }
@@ -40,11 +42,12 @@ struct ContentView: View {
                 BrandHeader(selection: $selection, credentialCount: store.verified.count)
                 Group {
                     switch selection {
-                    case .overview: OverviewView(selection: $selection)
+                    case .overview: OverviewView(selection: $selection, vouchTask: $vouchTask)
                     case .projects: ProjectsView(selection: $selection, vouchTask: $vouchTask)
                     case .credentials: CredentialsView(selection: $selection)
-                    case .lens: LensView()
+                    case .lens: LensView(selection: $selection, vouchTask: $vouchTask)
                     case .vouch: VouchView(selection: $selection, task: $vouchTask)
+                    case .verification: VerificationView()
                     }
                 }
                 .frame(maxHeight: .infinity)
@@ -68,15 +71,16 @@ private struct BrandHeader: View {
             HStack(spacing: 10) {
                 BrandMark()
                 VStack(alignment: .leading, spacing: 5) {
-                    (Text("vouch").foregroundStyle(VColor.ink) + Text("yyc").foregroundStyle(Color(hex: 0x7D8B91)))
+                    Text("proofly")
                         .font(.display(21, relativeTo: .title3))
+                        .foregroundStyle(VColor.ink)
                     Text("GOOD WORK GOES FURTHER")
                         .font(.text(8, weight: .bold, relativeTo: .caption2))
                         .tracking(1)
                         .foregroundStyle(Color(hex: 0xA6AFAC))
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("Vouch YYC")
+                .accessibilityLabel("Proofly")
                 Spacer()
                 HStack(spacing: 5) {
                     Circle().fill(VColor.pillDot).frame(width: 6, height: 6)
@@ -122,7 +126,7 @@ private struct BrandMark: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: 11).fill(VColor.blue)
-            Text("v")
+            Text("p")
                 .font(.display(30, relativeTo: .title))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

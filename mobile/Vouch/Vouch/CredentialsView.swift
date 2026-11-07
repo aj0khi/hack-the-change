@@ -1,6 +1,7 @@
 // CredentialsView.swift — the web "My credentials" section and its "Look closer" dialog,
 // plus QR sharing and importing so the phone and the web app can exchange credentials.
 
+import Foundation
 import SwiftUI
 import UIKit
 

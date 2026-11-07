@@ -1,6 +1,7 @@
 // VouchView.swift — the web "Give a vouch" section, built for the person who was helped:
 // large text, a voice button, and every skill tied to an exact sentence they said.
 
+import Foundation
 import SwiftUI
 import UIKit
 

@@ -1,10 +1,12 @@
 // OverviewView.swift — the web "Overview" section, laid out like the website at phone width.
 
+import Foundation
 import SwiftUI
 
 struct OverviewView: View {
     @Environment(VouchStore.self) private var store
     @Binding var selection: AppTab
+    @Binding var vouchTask: String
 
     var body: some View {
         let verified = store.verified
@@ -34,7 +36,10 @@ struct OverviewView: View {
                     .padding(.top, 37)
                 VStack(spacing: 9) {
                     ForEach(DemoData.projects.prefix(2)) { project in
-                        ProjectCard(project: project) { selection = .vouch }
+                        ProjectCard(project: project) {
+                            vouchTask = project.title
+                            selection = .vouch
+                        }
                     }
                 }
 

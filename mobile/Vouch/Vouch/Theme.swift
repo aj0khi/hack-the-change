@@ -125,6 +125,7 @@ enum VColor {
     static let footer = Color(hex: 0xB4BEB7)
     static let footerStar = Color(hex: 0xE49D80)
     static let dialogDetail = Color(hex: 0xF5F7F4)
+    static let verificationBody = Color(hex: 0x66776E)   // .verification-panel p, .badge-lookup p
 
     static let peach = (background: Color(hex: 0xFAEEE8), icon: Color(hex: 0xCF8269))
     static let lilac = (background: Color(hex: 0xEDEEFF), icon: Color(hex: 0x7E87C6))
@@ -460,7 +461,7 @@ struct VFooter: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 0) {
-                Text("© 2026 VOUCH YYC")
+                Text("© 2026 PROOFLY")
                 Text("✳").foregroundStyle(VColor.footerStar).padding(.horizontal, 7)
                 Text("BUILT FOR CALGARY")
             }

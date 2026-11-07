@@ -3,6 +3,7 @@
 // proves the phone and the website agree on the format.
 
 import CryptoKit
+import Foundation
 import XCTest
 @testable import Vouch   // change to your app module name
 
@@ -63,16 +64,73 @@ final class VouchTrustTests: XCTestCase {
         XCTAssertTrue(sentences.allSatisfy { transcript.contains($0) }, "Every sentence must be usable as an exact quote")
     }
 
-    func testKeywordLensMatchesTheWebExampleJob() throws {
+    private func exampleCredential() throws -> VerifiedCredential {
         let key = Curve25519.Signing.PrivateKey()
         let token = try VouchTrust.sign(DemoData.examplePayload, with: key)
-        let credential = VerifiedCredential(id: 0, token: token, payload: DemoData.examplePayload, verifiedBy: "test")
-        let rows = EmployerLens.keywordLens(posting: DemoData.exampleJob, credentials: [credential])
-        XCTAssertEqual(rows.count, 4)
-        XCTAssertEqual(rows[0].matches.first?.label, "Communication")   // communication and interpersonal
-        XCTAssertEqual(rows[1].matches.first?.label, "Digital")         // digital tools and technology
-        XCTAssertTrue(rows[2].matches.isEmpty)                          // project management: an honest gap
-        XCTAssertTrue(rows[3].matches.isEmpty)                          // no problem-solving evidence signed
+        return VerifiedCredential(id: 0, token: token, payload: DemoData.examplePayload, verifiedBy: "test")
+    }
+
+    /// Expected rows come from running app.js's keywordLens on the same example (Node, 2026-11-07).
+    func testKeywordLensMatchesTheWebExampleJob() throws {
+        let rows = EmployerLens.keywordLens(posting: DemoData.exampleJob, credentials: [try exampleCredential()])
+        XCTAssertEqual(rows.count, 15)
+        let matched = rows.filter { !$0.matches.isEmpty }.map { "\($0.id):\($0.matches[0].label)" }
+        XCTAssertEqual(matched, ["1:Digital", "4:Communication", "5:Digital", "7:Communication", "9:Digital"])
+        XCTAssertTrue(rows[0].requirement.hasPrefix("Client Support Coordinator (Junior)"))
+        XCTAssertEqual(rows[8].requirement, "Experience writing clear instructions or documentation.")
+        XCTAssertEqual(rows[8].suggestions.map(\.title), ["Create a simple digital guide", "Write the monthly newsletter"])
+        XCTAssertEqual(rows[8].suggestions.first?.why, "Practises writing.")
+        XCTAssertTrue(rows[11].matches.isEmpty)   // driver's licence: an honest gap
+        XCTAssertTrue(rows.allSatisfy { $0.keywordBased })
+    }
+
+    func testCatalogMatchesTheWebProjects() {
+        XCTAssertEqual(DemoData.projects.map(\.id), ["video-calls", "signup-sheet", "digital-guide", "volunteer-database",
+                                                    "tech-help-hour", "event-check-in", "newsletter", "newcomer-setup"])
+        XCTAssertTrue(DemoData.projects.allSatisfy { $0.skills.allSatisfy { DemoData.skills.contains($0) } })
+    }
+
+    /// The phone re-checks AI answers: unknown credentials and paraphrased quotes are dropped,
+    /// and only catalog projects are suggested, only for soft/technical gaps.
+    func testAILensAnswerIsGroundedOnThePhone() throws {
+        let credential = try exampleCredential()
+        let json = """
+        {"requirements":[
+          {"text":"Explain technical steps","kind":"soft","matches":[
+            {"credentialId":"0","quote":"Priya was patient and explained every step clearly.","evidenceType":"praise","why":"w"},
+            {"credentialId":"0","quote":"Priya explained everything perfectly.","evidenceType":"action","why":"made up"},
+            {"credentialId":"7","quote":"Priya was patient","evidenceType":"action","why":"no such credential"}]},
+          {"text":"Comfort with spreadsheets","kind":"technical","matches":[],
+           "suggestedProjects":[{"projectId":"signup-sheet","why":"Practise sheets"},{"projectId":"invented","why":"x"}]},
+          {"text":"Class 5 licence","kind":"credential","matches":[],"suggestedProjects":[{"projectId":"newsletter","why":"no"}]}],
+         "rejected":[{"requirement":"r","credentialId":"0","quote":"q","reason":"server said no"}],
+         "stats":{"validCredentials":1},"model":"test-model"}
+        """
+        let response = try JSONDecoder().decode(LensResponse.self, from: Data(json.utf8))
+        let submission = LensSubmission(tokens: [credential.token], credentialIDs: [credential.id], publicKeySPKI: "k")
+        let outcome = try LensAPI.outcome(from: response, submission: submission, credentials: [credential])
+        XCTAssertEqual(outcome.mode, .ai)
+        XCTAssertEqual(outcome.rows.count, 3)
+        XCTAssertEqual(outcome.rows[0].matches.map(\.quote), ["Priya was patient and explained every step clearly."])
+        XCTAssertEqual(outcome.rows[0].matches.first?.witness, "Doug")
+        XCTAssertEqual(outcome.rejected.count, 3)   // 1 from the server + 2 caught on the phone
+        XCTAssertEqual(outcome.rows[1].suggestions.map(\.title), ["Make a community spreadsheet easier"])
+        XCTAssertTrue(outcome.rows[2].suggestions.isEmpty)
+        XCTAssertEqual(outcome.matchedCount, 1)
+    }
+
+    func testFallbackAnswerUsesTheOfflineLens() throws {
+        let response = try JSONDecoder().decode(LensResponse.self, from: Data(#"{"fallback":true,"reason":"No model configured"}"#.utf8))
+        let submission = LensSubmission(tokens: [], credentialIDs: [], publicKeySPKI: "k")
+        XCTAssertThrowsError(try LensAPI.outcome(from: response, submission: submission, credentials: []))
+    }
+
+    func testDemandLinePicksTheMostAskedForSkill() {
+        let demand = SkillDemand(total: 30, counts: ["Communication": 12, "Digital": 20, "Writing": 0])
+        XCTAssertEqual(EmployerLens.demandLine(for: ["Communication", "Digital"], demand: demand),
+                       "Builds Digital: mentioned in 20 of 30 Calgary posting excerpts (Adzuna)")
+        XCTAssertNil(EmployerLens.demandLine(for: ["Writing"], demand: demand))
+        XCTAssertNil(EmployerLens.demandLine(for: ["Digital"], demand: nil))
     }
 
     func testAlterBreaksTheSignature() throws {
