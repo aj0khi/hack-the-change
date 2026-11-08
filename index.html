@@ -274,6 +274,9 @@
                 </h1>
                 <p>Small projects, meaningful impact, skills worth sharing.</p>
               </div>
+              <button class="button primary" type="button" id="open-post-need" aria-controls="post-need">
+                Add a demo project <i data-lucide="plus"></i>
+              </button>
             </div>
             <div class="section-intro explore-intro">
               <span><i data-lucide="map-pin"></i> CALGARY COMMUNITY</span
@@ -334,13 +337,15 @@
             </div>
             <details class="post-need" id="post-need">
               <summary>
-                <i data-lucide="plus"></i> Coordinator demo: post a community need
+                <i data-lucide="plus"></i> Add a demo project
+                <span class="post-need-tag">DEMO ONLY · SAVED IN THIS BROWSER</span>
               </summary>
               <form id="post-need-form" class="post-need-form">
                 <p>
-                  Add an example project to this browser's list and map. Pick a
-                  public venue from the list; personal or home addresses are
-                  never used.
+                  Add a fictional project for the demo. It appears in the list,
+                  on the map and in the vouch form, only in this browser, and you
+                  can remove it any time. Pick a public venue from the list;
+                  personal or home addresses are never used.
                 </p>
                 <label for="need-title">Project title</label>
                 <input id="need-title" name="title" type="text" maxlength="80" required />
@@ -361,7 +366,7 @@
                   <div class="skill-options" id="need-skills"></div>
                 </fieldset>
                 <button class="button primary" type="submit">
-                  Post example need <i data-lucide="arrow-right"></i>
+                  Add demo project <i data-lucide="arrow-right"></i>
                 </button>
                 <p class="form-error" id="post-need-error" role="status"></p>
               </form>

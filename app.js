@@ -210,7 +210,12 @@ function showView(name) {
 }
 
 function projectCard(project, { selectable = false } = {}) {
-  return `<article class="project-card" data-project-card="${escapeHTML(project.id)}" tabindex="${selectable ? "0" : "-1"}"${selectable ? ' aria-describedby="card-map-hint"' : ""}><span class="project-icon ${project.color}">${icon(project.icon)}</span><div class="project-body"><div class="project-meta">${escapeHTML(project.organization.toUpperCase())} <span>·</span> ${project.time}</div><h3>${escapeHTML(project.title)}</h3><p>${escapeHTML(project.description)}</p><div class="skills-row">${project.skills.map((skill) => `<span class="skill-chip">${escapeHTML(skill)}</span>`).join("")}</div></div><button class="project-arrow" type="button" data-project="${escapeHTML(project.title)}" aria-label="Give a vouch for ${escapeHTML(project.title)}" title="Give a vouch">${icon("arrow-up-right")}</button></article>`;
+  // Projects added with "Add a demo project" are labelled and can be removed again.
+  const demoTag = project.posted ? '<span class="demo-project-tag">ADDED FOR DEMO</span> ' : "";
+  const removeButton = project.posted && selectable
+    ? `<button class="text-link demo-project-remove" type="button" data-remove-project="${escapeHTML(project.id)}" aria-label="Remove demo project ${escapeHTML(project.title)}">${icon("trash-2")} Remove</button>`
+    : "";
+  return `<article class="project-card${project.posted ? " is-demo-project" : ""}" data-project-card="${escapeHTML(project.id)}" tabindex="${selectable ? "0" : "-1"}"${selectable ? ' aria-describedby="card-map-hint"' : ""}><span class="project-icon ${project.color}">${icon(project.icon)}</span><div class="project-body"><div class="project-meta">${demoTag}${escapeHTML(project.organization.toUpperCase())} <span>·</span> ${project.time}</div><h3>${escapeHTML(project.title)}</h3><p>${escapeHTML(project.description)}</p><div class="skills-row">${project.skills.map((skill) => `<span class="skill-chip">${escapeHTML(skill)}</span>`).join("")}</div>${removeButton}</div><button class="project-arrow" type="button" data-project="${escapeHTML(project.title)}" aria-label="Give a vouch for ${escapeHTML(project.title)}" title="Give a vouch">${icon("arrow-up-right")}</button></article>`;
 }
 
 function renderProjects() {
@@ -897,22 +902,51 @@ function setupPostNeedForm() {
       error.textContent = "Add a title, a public venue, a description and at least one skill.";
       return;
     }
-    const stored = postedProjects.map(({ id, title, venueId, description, time, skills }) => ({ id, title, venueId, description, time, skills }));
-    let saved = false;
-    if (database) {
-      try {
-        await writeState("posted-projects", [...stored, item]);
-        saved = true;
-      } catch { /* keep it for this visit only */ }
-    }
     postedProjects = [...postedProjects, project];
-    error.textContent = saved ? "" : "Posted for this visit only: browser storage is unavailable.";
+    const saved = await savePostedProjects();
+    error.textContent = saved ? "" : "Added for this visit only: browser storage is unavailable.";
     form.reset();
+    document.querySelector("#post-need").open = false;
     renderProjects();
     explore.select(project.id, "post");
     explore.highlight(project.id);
-    announce(`Posted example need: ${project.title}, at ${project.orgName}. ${saved ? "Saved in this browser." : "Not saved in this browser."}`);
+    announce(`Added demo project: ${project.title}, at ${project.orgName}. ${saved ? "Saved in this browser." : "Not saved in this browser."}`);
   });
+
+  // "Add a demo project" at the top of Explore opens the form at the bottom and moves focus into it.
+  document.querySelector("#open-post-need").addEventListener("click", () => {
+    const details = document.querySelector("#post-need");
+    details.open = true;
+    details.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    document.querySelector("#need-title").focus({ preventScroll: true });
+  });
+
+  // Remove a demo project you added (built-in example projects can't be removed).
+  document.querySelector("#all-projects").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-remove-project]");
+    if (!button) return;
+    const project = postedProjects.find((item) => item.id === button.dataset.removeProject);
+    if (!project) return;
+    postedProjects = postedProjects.filter((item) => item !== project);
+    await savePostedProjects();
+    renderProjects();
+    document.querySelector("#open-post-need").focus();
+    announce(`Removed demo project: ${project.title}.`);
+  });
+}
+
+// Saves the demo projects added in this browser. Returns false when storage is unavailable.
+async function savePostedProjects() {
+  if (!database) return false;
+  try {
+    await writeState(
+      "posted-projects",
+      postedProjects.map(({ id, title, venueId, description, time, skills }) => ({ id, title, venueId, description, time, skills })),
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ---- Speech-to-text, shared by the standard form and easy (kiosk) mode ----
