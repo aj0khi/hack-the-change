@@ -132,6 +132,10 @@ Account verification remains disabled until hosted providers are configured. Cre
 
 The account page uses Auth0 sign-in and checks the account's email verification with Auth0. Stripe hosts the ID and selfie check; Proofly stores only its session ID and status, not licence images or numbers. The server checks that each session belongs to the authenticated user and uses a document plus matching selfie. Stripe test-mode results are explicitly marked test-only. Identity session attempts are limited per account and requests are rate limited per server process.
 
+The demo API permits 600 requests per IP per 15 minutes; each lens endpoint has an additional limit of 20 requests per minute. Limits are held in memory per server process, so shared networks can exhaust a shared IP's allowance. A rate-limited response includes `Retry-After` and a JSON error.
+
+After Auth0 sign-in, the student workspace derives a display name from the email address before the `@` (for example, `jane.doe@example.com` becomes “Jane Doe”). This is only a display label, not a verified legal name; it does not change fictional student profiles or credential claims. The simulated entry does not collect an email.
+
 The Proofly product name does not need to match your Auth0 API audience. Keep `AUTH0_AUDIENCE` set to the exact identifier shown for your existing Auth0 API; changing the product branding does not require changing that identifier.
 
 Stripe currently advertises the first 50 Identity verifications free, followed by CA$2 per completed document-and-selfie check in Canada. Confirm eligibility and current pricing with [Stripe](https://stripe.com/en-ca/identity#pricing) before using live mode. Test mode does not verify a real identity. No free alternative providing equivalent government-ID checks has been integrated.

@@ -1,6 +1,7 @@
 // The browser never decides whether a credential is authentic: it asks the server (/api/credentials/verify),
 // which checks signatures against its trusted issuer registry and its issuance records.
 import { alterCredential } from "./trust.mjs";
+import { readApiResponse } from "./api-response.mjs";
 import { projects, communityVenues, calgaryAreas, atVenue } from "./lens/projects.mjs";
 import { skillTerms } from "./lens/skills.mjs";
 import { employerJobSamples } from "./lens/employer-job-samples.mjs";
@@ -88,9 +89,7 @@ async function demoRequest(path, body) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Demo credential service is unavailable.");
-  return result;
+  return readApiResponse(response, "Demo credential service is unavailable.");
 }
 
 async function signDemo(payload) {
@@ -257,8 +256,7 @@ async function loadFictionalStudentProfiles() {
   const note = document.querySelector("#student-lens-person-note");
   try {
     const response = await fetch("/api/employer/demo-students", { cache: "no-store" });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Fictional students could not be loaded.");
+    const data = await readApiResponse(response, "Fictional students could not be loaded.");
     const profiles = Array.isArray(data.students) ? data.students : [];
     const entries = profiles.flatMap((profile) =>
       (Array.isArray(profile.credentials) ? profile.credentials : [])
@@ -681,9 +679,8 @@ document.querySelector("#student-ai-analyze").addEventListener("click", async ()
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ posting, credentials: valid.map((item) => item.token) }), // the server verifies them itself
     });
-    const data = await response.json();
+    const data = await readApiResponse(response, "AI analysis failed.");
     if (renderId !== lensRender) return;
-    if (!response.ok) throw new Error(data.error || "AI analysis failed.");
     if (data.fallback) {
       output.textContent = "AI is unavailable. Use Find evidence for the offline keyword pathway.";
       return;

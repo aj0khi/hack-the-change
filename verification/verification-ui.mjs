@@ -1,3 +1,6 @@
+import { displayNameFromEmail } from './account-name.mjs';
+import { readApiResponse } from '../api-response.mjs';
+
 const accountStatus = document.querySelector('#verification-account');
 const identityStatus = document.querySelector('#verification-identity');
 const organizationStatus = document.querySelector('#verification-organization');
@@ -10,16 +13,26 @@ const organizationSubmit = document.querySelector('#organization-submit');
 let client;
 let config;
 
+function showAccountName(email) {
+  const name = displayNameFromEmail(email);
+  if (!name) return;
+  document.querySelector('#profile-name').textContent = name;
+  document.querySelector('#profile-description').textContent = 'Account display name · demo workspace';
+  document.querySelector('#overview-name').textContent = name;
+  document.querySelectorAll('[data-profile-initial]').forEach(element => {
+    element.textContent = Array.from(name)[0].toLocaleUpperCase();
+  });
+}
+
 async function request(path, options = {}) {
   const token = await client.getTokenSilently({ authorizationParams: { audience: config.auth0Audience, scope: 'access:verification' } });
   const response = await fetch(path, { ...options, headers: { authorization: `Bearer ${token}`, ...(options.body ? { 'content-type': 'application/json' } : {}) }, cache: 'no-store' });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Unable to complete the request.');
-  return data;
+  return readApiResponse(response, 'Unable to complete the request.');
 }
 
 function renderStatus(data) {
   accountStatus.textContent = `Email verified: ${data.email}`;
+  showAccountName(data.email);
   const labels = {
     not_started: 'Identity check not started.',
     pending: 'Identity verification is pending. Refresh once Stripe has completed your check.',
@@ -49,8 +62,7 @@ async function loadAccount() {
 async function initialize() {
   try {
     const response = await fetch('/api/config', { cache: 'no-store' });
-    if (!response.ok) throw new Error('Verification service is unavailable. Start the Node server with npm start.');
-    config = await response.json();
+    config = await readApiResponse(response, 'Verification service is unavailable.');
     if (!config.enabled) throw new Error('Account verification is not configured. Configure Auth0 to enable sign-in.');
     if (!window.auth0?.createAuth0Client) throw new Error('The account sign-in library could not be loaded.');
     client = await window.auth0.createAuth0Client({
@@ -66,6 +78,12 @@ async function initialize() {
     }
     if (await client.isAuthenticated()) {
       logout.hidden = false;
+      try {
+        const user = await client.getUser();
+        showAccountName(user?.email);
+      } catch (error) {
+        console.warn('Could not read the account profile:', error.message);
+      }
       await loadAccount();
     } else {
       login.hidden = false;

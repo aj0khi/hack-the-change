@@ -1,4 +1,5 @@
 import { jobExample } from './job-example.mjs';
+import { readApiResponse } from '../api-response.mjs';
 import { employerJobSamples } from './employer-job-samples.mjs';
 import { skillTerms } from './skills.mjs';
 
@@ -62,8 +63,7 @@ function updateStudentPicker() {
 async function loadDemoStudents() {
   try {
     const response = await fetch('/api/employer/demo-students');
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Demo students could not be loaded.');
+    const data = await readApiResponse(response, 'Demo students could not be loaded.');
     demoStudents = Array.isArray(data.students) ? data.students : [];
     updateStudentPicker();
   } catch (error) {
@@ -222,8 +222,7 @@ form.addEventListener('submit', async event => {
         const response = await fetch('/api/employer/lens', {
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ posting, links }),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Analysis failed.');
+        const data = await readApiResponse(response, 'Analysis failed.');
         outcomes.push({ data });
       } catch (error) {
         outcomes.push({ error: error.message || 'Analysis failed.' });
@@ -275,8 +274,7 @@ document.querySelector('#badge-lookup-form').addEventListener('submit', async ev
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify(Object.fromEntries(new FormData(form))),
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Badge lookup unavailable.');
+    const result = await readApiResponse(response, 'Badge lookup unavailable.');
     const messages = {
       found: 'Provider record found. Recipient ownership and issuer trust are not verified.',
       revoked: 'The provider reports that this assertion is revoked.',

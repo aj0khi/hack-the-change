@@ -28,6 +28,7 @@ const STATIC_FILES = {
   '/robots.txt': 'robots.txt',
   '/proofly-share-preview.png': 'proofly-share-preview.png',
   '/app.js': 'app.js',
+  '/api-response.mjs': 'api-response.mjs',
   '/trust.mjs': 'trust.mjs',
   '/lens/lens.css': 'lens/lens.css',
   '/map/explore-map.css': 'map/explore-map.css',
@@ -36,6 +37,7 @@ const STATIC_FILES = {
   '/lens/skills.mjs': 'lens/skills.mjs',
   '/lens/student-pathway.mjs': 'lens/student-pathway.mjs',
   '/verification/verification-ui.mjs': 'verification/verification-ui.mjs',
+  '/verification/account-name.mjs': 'verification/account-name.mjs',
   '/verification/demo-entry.mjs': 'verification/demo-entry.mjs',
   '/verification/share-card.mjs': 'verification/share-card.mjs',
   '/verification/linkedin-caption.mjs': 'verification/linkedin-caption.mjs',
@@ -75,10 +77,11 @@ export function createApp({ config, store, demoCredentials, authenticate, getUse
   const app = express();
   app.disable('x-powered-by');
   app.use('/api', (_request, response, next) => { response.set('Cache-Control', 'no-store'); next(); });
-  app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 100, standardHeaders: true, legacyHeaders: false }));
+  const rateLimitMessage = { error: 'Too many requests. Please wait and try again.' };
+  app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: true, legacyHeaders: false, message: rateLimitMessage }));
 
   app.post('/api/employer/lens',
-    rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false }),
+    rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: rateLimitMessage }),
     express.json({ limit: '128kb' }),
     async (request, response) => {
       try {
@@ -95,7 +98,7 @@ export function createApp({ config, store, demoCredentials, authenticate, getUse
   // Employer Lens: registered before the global 8kb parser because a full posting plus signed
   // credentials is larger. Identical posting + credentials reuse the last good answer.
   app.post('/api/lens',
-    rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false }),
+    rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: rateLimitMessage }),
     express.json({ limit: '256kb' }),
     async (request, response) => {
       try {

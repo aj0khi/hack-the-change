@@ -15,13 +15,42 @@ async function start(options) {
 test('serves only the listed static files, including the lens folder', async () => {
   const { server, base } = await start({ demoCredentials: null });
   try {
-    for (const path of ['/', '/app.js', '/lens/lens.css', '/lens/projects.mjs', '/lens/skills.mjs', '/lens/student-pathway.mjs', '/lens/job-example.mjs', '/verification/verification-ui.mjs', '/verification/demo-entry.mjs', '/verification/share-card.mjs'])
+    for (const path of ['/', '/app.js', '/api-response.mjs', '/lens/lens.css', '/lens/projects.mjs', '/lens/skills.mjs', '/lens/student-pathway.mjs', '/lens/job-example.mjs', '/verification/verification-ui.mjs', '/verification/account-name.mjs', '/verification/demo-entry.mjs', '/verification/share-card.mjs'])
       assert.equal((await fetch(`${base}${path}`)).status, 200, path);
     for (const path of ['/server.mjs', '/lens/lens.mjs', '/lens/bedrock.mjs', '/.env', '/lens/../.env', '/data/lens-cache.json'])
       assert.equal((await fetch(`${base}${path}`)).status, 404, path);
     assert.equal((await (await fetch(`${base}/api/config`)).json()).enabled, false);
     assert.equal((await fetch(`${base}/api/unknown`)).status, 404);
     assert.equal((await fetch(`${base}/api/employer/demo-students`)).status, 503);
+  } finally { server.close(); }
+});
+
+test('routine API requests have a larger budget and rate-limit errors are JSON', async () => {
+  const { server, base } = await start({ demoCredentials: null });
+  try {
+    for (let i = 0; i < 600; i++) {
+      const response = await fetch(`${base}/api/config`);
+      assert.equal(response.status, 200, `request ${i + 1}`);
+      await response.body.cancel();
+    }
+    const limited = await fetch(`${base}/api/config`);
+    assert.equal(limited.status, 429);
+    assert.match((await limited.json()).error, /Too many requests/);
+    assert.ok(limited.headers.get('retry-after'));
+  } finally { server.close(); }
+});
+
+test('lens-specific request limit returns a JSON error', async () => {
+  const { server, base } = await start({});
+  try {
+    for (let i = 0; i < 20; i++) {
+      const response = await post(base, { posting: 'Communication', credentials: [] });
+      assert.equal(response.status, 200);
+      await response.body.cancel();
+    }
+    const limited = await post(base, { posting: 'Communication', credentials: [] });
+    assert.equal(limited.status, 429);
+    assert.match((await limited.json()).error, /Too many requests/);
   } finally { server.close(); }
 });
 const post = (base, body) => fetch(`${base}/api/lens`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
