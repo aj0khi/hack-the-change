@@ -1349,6 +1349,16 @@ dialog::backdrop {
   font-weight: 700;
   font-size: 12px;
 }
+.verify-box #verify-result[data-status="invalid"] {
+  color: #b42318;
+}
+.verify-box #verify-result[data-status="verified"] {
+  color: #287044;
+}
+.verify-box #verify-result[data-status="pending"],
+.verify-box #verify-result[data-status="unavailable"] {
+  color: #667085;
+}
 .sr-only {
   position: absolute;
   width: 1px;

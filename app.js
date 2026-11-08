@@ -348,7 +348,7 @@ async function openCredential(index) {
   document.querySelector("#dialog-content").innerHTML =
     `<div class="dialog-detail"><h3>${escapeHTML(payload.title)}</h3><p><strong>Issuer:</strong> ${escapeHTML(result.issuerName)} · from the server's trusted issuer registry</p><p><strong>Witness:</strong> ${escapeHTML(payload.witness)} ${payload.example ? "(fictional example)" : "(demo entry)"}</p><p><strong>Student:</strong> ${escapeHTML(payload.student)}</p><p><strong>Credential ID:</strong> ${escapeHTML(result.credentialId)}</p><p><strong>Status:</strong> ${escapeHTML(result.message)}</p></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”</div>${payload.mappings.map((mapping) => `<p><span class="skill-chip">${escapeHTML(mapping.skill)}</span> <span class="result-desc">“${escapeHTML(mapping.quote)}”</span></p>`).join("")}`;
   document.querySelector("#credential-token").value = token;
-  document.querySelector("#verify-result").textContent = verifyMessage(result);
+  renderVerifyResult(document.querySelector("#verify-result"), result);
   document.querySelector("#credential-dialog").showModal();
   refreshIcons();
 }
@@ -459,19 +459,29 @@ document.querySelector("#tamper-token").addEventListener("click", () => {
   if (!selectedCredential) return;
   document.querySelector("#credential-token").value =
     alterCredential(selectedCredential);
-  document.querySelector("#verify-result").textContent =
-    "Credential changed. Check its signature.";
+  const output = document.querySelector("#verify-result");
+  output.dataset.status = "pending";
+  output.textContent = "Credential changed. Check its signature.";
 });
 function verifyMessage(result) {
   if (result.status === "verified") return `Verified by the server: signed by ${result.issuerName}, a trusted issuer.`;
   return `Not valid. ${result.message || "The server could not verify this credential."}`;
 }
+function renderVerifyResult(output, result) {
+  output.dataset.status = result.status === "verified"
+    ? "verified"
+    : result.status === "invalid"
+      ? "invalid"
+      : "unavailable";
+  output.textContent = verifyMessage(result);
+}
 // The tamper test asks the server, the same check employers and share links get.
 document.querySelector("#verify-token").addEventListener("click", async () => {
   const output = document.querySelector("#verify-result");
+  output.dataset.status = "pending";
   output.textContent = "Checking with the server…";
   const [result] = await verifyWithServer([document.querySelector("#credential-token").value.trim()]);
-  output.textContent = verifyMessage(result);
+  renderVerifyResult(output, result);
 });
 document.querySelector("#close-share").addEventListener("click", () => document.querySelector("#share-dialog").close());
 document.querySelector("#share-dialog").addEventListener("close", () => {

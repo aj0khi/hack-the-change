@@ -192,6 +192,22 @@ export async function createDemoCredentialStore(filename, { env = {} } = {}) {
             ],
           }],
         },
+        {
+          name: 'Priya Sharma',
+          role: 'Customer service · fictional scenario',
+          credentials: [{
+            title: 'Customer support practice for Durabuilt Windows & Doors (fictional scenario)',
+            witness: 'Morgan',
+            transcript: "In a fictional customer-service practice scenario for Durabuilt Windows & Doors, Priya listened to a homeowner's questions about window options and explained the next steps in plain language. She recorded the customer's request in a tracking sheet, clarified a concern about scheduling, and coordinated a follow-up after the appointment time changed.",
+            mappings: [
+              { skill: 'Communication', quote: "listened to a homeowner's questions about window options and explained the next steps in plain language" },
+              { skill: 'Digital', quote: "recorded the customer's request in a tracking sheet" },
+              { skill: 'Problem solving', quote: 'clarified a concern about scheduling' },
+              { skill: 'Adaptability', quote: 'after the appointment time changed' },
+              { skill: 'Collaboration', quote: 'coordinated a follow-up' },
+            ],
+          }],
+        },
       ];
       const upsert = db.prepare(`INSERT INTO fictional_demo_students(name,credential_ids) VALUES(?,?)
         ON CONFLICT(name) DO UPDATE SET credential_ids=excluded.credential_ids`);
@@ -218,6 +234,7 @@ export async function createDemoCredentialStore(filename, { env = {} } = {}) {
         }
         listed.push({
           name: profile.name,
+          role: profile.role,
           skills: [...new Set(credentials.flatMap(credential => credential.payload.mappings.map(mapping => mapping.skill)))],
           links: ids.map(id => `${appOrigin}/verify/${id}`),
           credentials: credentials.map(credential => ({ token: credential.token })),

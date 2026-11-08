@@ -117,9 +117,9 @@ test('employer demo student picker returns repeatable fictional signed profiles'
   try {
     const first = await (await fetch(`${t.base}/api/employer/demo-students`)).json();
     const second = await (await fetch(`${t.base}/api/employer/demo-students`)).json();
-    assert.equal(first.students.length, 4);
+    assert.equal(first.students.length, 5);
     assert.deepEqual(first, second);
-    assert.deepEqual(first.students.map(student => student.name), ['Alex Rivera', 'Jordan Lee', 'Sam Chen', 'Riley Morgan']);
+    assert.deepEqual(first.students.map(student => student.name), ['Alex Rivera', 'Jordan Lee', 'Sam Chen', 'Riley Morgan', 'Priya Sharma']);
     for (const student of first.students) {
       assert.equal(student.links.length, 1);
       assert(student.skills.length >= 3);
@@ -132,6 +132,13 @@ test('employer demo student picker returns repeatable fictional signed profiles'
       assert.equal(student.credentials.length, 1);
       assert.equal(student.credentials[0].token, credential.token);
     }
+    const priya = first.students.find(student => student.name === 'Priya Sharma');
+    assert.equal(priya.role, 'Customer service · fictional scenario');
+    assert.deepEqual(priya.skills, ['Communication', 'Digital', 'Problem solving', 'Adaptability', 'Collaboration']);
+    const priyaCredential = await t.credentials.getPublished(new URL(priya.links[0]).pathname.split('/').at(-1));
+    assert.match(priyaCredential.payload.title, /Durabuilt Windows & Doors \(fictional scenario\)/);
+    assert.match(priyaCredential.payload.transcript, /fictional customer-service practice scenario/);
+    assert.deepEqual(priyaCredential.payload.mappings.map(mapping => mapping.skill), priya.skills);
   } finally { await t.close(); }
 });
 

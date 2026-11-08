@@ -47,7 +47,7 @@ function updateStudentPicker() {
   studentSelect.replaceChildren(new Option(ranked.length ? 'Choose a fictional demo student…' : 'Demo students unavailable', ''));
   for (const [index, student] of ranked.entries()) {
     const option = new Option(
-      `${index + 1}. ${student.name} · ${student.matchedSkills.length} match${student.matchedSkills.length === 1 ? '' : 'es'}`,
+      `${index + 1}. ${student.name}${student.role ? ` · ${student.role}` : ''} · ${student.matchedSkills.length} match${student.matchedSkills.length === 1 ? '' : 'es'}`,
       String(student.originalIndex),
     );
     studentSelect.add(option);
@@ -57,7 +57,7 @@ function updateStudentPicker() {
   addStudentButton.disabled = !studentSelect.value || button.disabled;
   if (!jobField.value.trim()) studentHint.textContent = 'Choose or add a job description to rank demo profiles. Demo-only keyword overlap—not a skill, ability, or hiring score. Real students are not listed; add only links shared with you.';
   else if (!ranked.some(student => student.matchedSkills.length)) studentHint.textContent = 'No recognized demo-skill keywords in this posting; fictional students are listed alphabetically. This is not a hiring score. Real students are not listed; add only links shared with you.';
-  else studentHint.textContent = 'Fictional demo students are ordered by the number of listed sample skills whose keywords appear in this posting. This is not an ability, suitability, or hiring score. Real students are not listed; add only links shared with you.';
+  else studentHint.textContent = 'Fictional demo students are ordered by the number of listed sample skills whose keywords appear in this posting. Priya’s Durabuilt customer-support scenario is fictional and does not imply employment, endorsement, or affiliation. This is not an ability, suitability, or hiring score. Real students are not listed; add only links shared with you.';
 }
 
 async function loadDemoStudents() {
@@ -189,7 +189,9 @@ addStudentButton.addEventListener('click', () => {
   groups.push(links);
   textarea.value = groups.map(group => group.join('\n')).join('\n\n');
   inputsChanged();
-  studentHint.textContent = `Added fictional demo student ${student.name}. Review their links and the job before comparing.`;
+  studentHint.textContent = student.role === 'Customer service · fictional scenario'
+    ? `Added fictional demo student ${student.name}. The Durabuilt customer-support scenario is fictional and implies no employment, endorsement, or affiliation. Review the links and job before comparing.`
+    : `Added fictional demo student ${student.name}. Review their links and the job before comparing.`;
 });
 loadJobs();
 loadDemoStudents();
