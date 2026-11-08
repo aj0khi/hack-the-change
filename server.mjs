@@ -9,6 +9,7 @@ import { dirname, join } from 'node:path';
 import { createApp } from './server-app.mjs';
 import { createVerificationStore } from './verification/verification-store.mjs';
 import { createBedrockGenerator, DEFAULT_BEDROCK_MODEL, DEFAULT_BEDROCK_REGION } from './lens/bedrock.mjs';
+import { createGroqGenerator, DEFAULT_GROQ_MODEL } from './lens/groq.mjs';
 import { loadJobs } from './lens/adzuna.mjs';
 import { createDemoCredentialStore } from './verification/demo-credentials.mjs';
 
@@ -33,9 +34,13 @@ const store = createVerificationStore(process.env.VERIFICATION_DB || join(root, 
 const demoCredentials = await createDemoCredentialStore(process.env.DEMO_CREDENTIAL_DB || join(root, 'data', 'demo-credentials.sqlite'));
 
 // Employer Lens: AI model, Calgary jobs (cached in data/), and saved lens answers (data/lens-cache.json).
-const model = process.env.BEDROCK_MODEL_ID || DEFAULT_BEDROCK_MODEL;
-const generate = await createBedrockGenerator({ modelId: model, region: process.env.AWS_REGION || DEFAULT_BEDROCK_REGION });
-if (!generate) console.warn('[lens] No AWS credentials set; the lens will use offline keyword matching.');
+// Provider order: Groq if GROQ_API_KEY is set, otherwise Bedrock if AWS credentials are set, otherwise offline.
+const groqModel = process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL;
+const bedrockModel = process.env.BEDROCK_MODEL_ID || DEFAULT_BEDROCK_MODEL;
+const groq = createGroqGenerator({ apiKey: process.env.GROQ_API_KEY, model: groqModel });
+const generate = groq || await createBedrockGenerator({ modelId: bedrockModel, region: process.env.AWS_REGION || DEFAULT_BEDROCK_REGION });
+const model = groq ? groqModel : bedrockModel;
+console.log(generate ? `[lens] AI provider: ${groq ? 'Groq' : 'Amazon Bedrock'} (${model})` : '[lens] No GROQ_API_KEY or AWS credentials set; the lens will use offline keyword matching.');
 const jobsReady = loadJobs({ appId: process.env.ADZUNA_APP_ID, appKey: process.env.ADZUNA_APP_KEY, cachePath: join(root, 'data', 'adzuna-cache.json') });
 const lensCachePath = join(root, 'data', 'lens-cache.json');
 let lensCache = new Map();
