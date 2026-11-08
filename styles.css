@@ -1099,6 +1099,9 @@ footer {
 }
 .share-link { overflow-wrap: anywhere; }
 #share-qr { max-width: 100%; height: auto; }
+.share-platforms { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.share-platforms .button { text-decoration: none; }
+.share-hint { font-size: 13px; line-height: 1.5; color: #655b70; }
 .role-badge {
   display: flex;
   gap: 6px;
