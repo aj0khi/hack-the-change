@@ -28,6 +28,9 @@ test('server issues, shares, verifies and retains demo credentials across restar
     const base = `http://127.0.0.1:${server.address().port}`;
     const post = (path, body) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const issuer = await (await fetch(base + '/api/demo-credentials/issuer')).json();
+    const robots = await fetch(base + '/robots.txt', { headers: { 'user-agent': 'LinkedInBot' } });
+    assert.equal(robots.status, 200);
+    assert.match(await robots.text(), /User-agent: LinkedInBot\s+Allow: \//);
     const issue = await post('/api/demo-credentials/issue', demo);
     assert.equal(issue.status, 201);
     const { token } = await issue.json();

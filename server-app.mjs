@@ -16,6 +16,7 @@ const STATIC_FILES = {
   '/': 'index.html',
   '/index.html': 'index.html',
   '/styles.css': 'styles.css',
+  '/robots.txt': 'robots.txt',
   '/proofly-share-preview.png': 'proofly-share-preview.png',
   '/app.js': 'app.js',
   '/trust.mjs': 'trust.mjs',
