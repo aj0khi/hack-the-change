@@ -57,8 +57,13 @@
 .verification-footnote { font-size: 12px !important; margin-bottom: 0; }
 .verification-panel button:disabled { opacity: .48; cursor: not-allowed; }
 .verification-panel form label { display: block; font-weight: 700; margin: 15px 0 6px; }
-.verification-panel form input { width: 100%; padding: 12px; border: 1px solid #b5c3b9; border-radius: 4px; font-size: 16px; }
+.verification-panel form input, .verification-panel form textarea, .verification-panel form select { width: 100%; padding: 12px; border: 1px solid #b5c3b9; border-radius: 4px; font-size: 16px; }
 .verification-panel form button { margin-top: 18px; }
+.verification-panel details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+.verification-panel summary { cursor: pointer; font-weight: 700; }
+.rehearsal-item { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
+.rehearsal-item p { margin: 4px 0; }
+.rehearsal-code { display: block; overflow-wrap: anywhere; user-select: all; font-weight: 700; }
 .verification-aside { background: #e8eee8; border-radius: 6px; padding: 24px; }
 .verification-aside .overline { margin-top: 20px; }
 .verification-aside ul { list-style: none; padding: 0; }

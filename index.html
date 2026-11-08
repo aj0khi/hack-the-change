@@ -658,6 +658,42 @@
                 <section class="verification-panel"><div class="verification-number">01 <span>ACCOUNT</span></div><h2>Sign in securely.</h2><p>Use your own account and verify your email address. Your contact details are not public.</p><div id="verification-account" class="verification-status" role="status">Checking account service…</div><div class="verification-actions"><button class="button primary" type="button" id="account-login" hidden>Sign in or create account <i data-lucide="arrow-up-right"></i></button><button class="button subtle" type="button" id="account-logout" hidden>Sign out</button></div></section>
                 <section class="verification-panel"><div class="verification-number">02 <span>IDENTITY</span></div><h2>Verify your identity.</h2><p>Stripe handles your government ID and matching selfie. Proofly does not upload or store your licence image or number.</p><div id="verification-identity" class="verification-status">Sign in to get started.</div><div class="verification-actions"><button class="button primary" type="button" id="identity-start" disabled>Verify with Stripe <i data-lucide="arrow-up-right"></i></button><button class="button subtle" type="button" id="identity-refresh" disabled>Refresh status</button></div><p class="verification-footnote">A verified ID is not a guarantee of truth or a unique person. Duplicate identity review is a separate step.</p></section>
                 <section class="verification-panel"><div class="verification-number">03 <span>ORGANIZATION</span></div><h2>Request organization review.</h2><p>We need independently checkable details. Submitting them does not automatically verify the organization or your affiliation.</p><form id="organization-form" method="post" action="/api/account/organization"><label for="organization-name">Legal organization name</label><input id="organization-name" name="name" type="text" autocomplete="organization" maxlength="150" required><label for="organization-registry">Registry number or public registry reference</label><input id="organization-registry" name="registry" type="text" maxlength="150" required><label for="organization-website">Official website</label><input id="organization-website" name="website" type="url" placeholder="https://" maxlength="500" required><label for="organization-email">Official contact email</label><input id="organization-email" name="email" type="email" autocomplete="email" maxlength="254" required><label for="organization-phone">Official contact phone</label><input id="organization-phone" name="phone" type="tel" autocomplete="tel" maxlength="40" required><button class="button primary" type="submit" id="organization-submit" disabled>Submit for review <i data-lucide="arrow-right"></i></button></form><div id="verification-organization" class="verification-status" role="status">No organization review requested.</div></section>
+                <section class="verification-panel" id="rehearsal-panel">
+                  <div class="verification-number">04 <span>AUTHENTICATED REHEARSAL</span></div>
+                  <h2>Practise a three-account review.</h2>
+                  <p>Use fictional names and words only. A witness, student and coordinator each sign in with a different verified email account. Codes expire after 24 hours and work once.</p>
+                  <div class="inline-note">This is still a demo. Separate accounts do not prove separate people, organization approval, or that work happened. The public demo issuer can also sign without this process. Do not enter real testimonials or sensitive information.</div>
+                  <p id="rehearsal-login-note">Sign in above to use the rehearsal.</p>
+                  <div id="rehearsal-content" hidden>
+                    <details>
+                      <summary>1. Witness: create a fictional request</summary>
+                      <form id="rehearsal-create">
+                        <label for="rehearsal-title">Fictional project</label><input id="rehearsal-title" name="title" maxlength="150" required>
+                        <label for="rehearsal-student">Fictional student name</label><input id="rehearsal-student" name="student" maxlength="100" required>
+                        <label for="rehearsal-witness">Fictional witness name</label><input id="rehearsal-witness" name="witness" maxlength="40" required>
+                        <label for="rehearsal-transcript">Fictional vouch</label><textarea id="rehearsal-transcript" name="transcript" maxlength="2000" rows="3" required></textarea>
+                        <label for="rehearsal-skill">Skill illustrated by the vouch</label><select id="rehearsal-skill" name="skill" required><option>Communication</option><option>Digital</option><option>Problem solving</option><option>Collaboration</option><option>Adaptability</option><option>Writing</option><option>Reading</option><option>Numeracy</option><option>Creativity and innovation</option></select>
+                        <button class="button primary" type="submit">Create student code</button>
+                      </form>
+                    </details>
+                    <details>
+                      <summary>2–3. Student or coordinator: inspect a code</summary>
+                      <form id="rehearsal-inspect">
+                        <label for="rehearsal-role">Your role</label><select id="rehearsal-role"><option value="student">Student</option><option value="coordinator">Coordinator</option></select>
+                        <label for="rehearsal-code">Invitation code</label><input id="rehearsal-code" autocomplete="off" spellcheck="false" maxlength="32" required>
+                        <button class="button subtle" type="submit">Review request</button>
+                      </form>
+                      <div id="rehearsal-review" hidden>
+                        <p id="rehearsal-review-text"></p>
+                        <button class="button primary" id="rehearsal-confirm" type="button"></button>
+                      </div>
+                    </details>
+                    <div id="rehearsal-message" class="verification-status" role="status" aria-live="polite"></div>
+                    <p>Codes are shown once. Copy and share them privately with the next participant; a lost or expired code requires a new request.</p>
+                    <div class="verification-actions"><button class="button subtle" id="rehearsal-refresh" type="button">Refresh my requests</button></div>
+                    <div id="rehearsal-list"></div>
+                  </div>
+                </section>
               </div>
               <aside class="verification-aside"><span class="lens-icon"><i data-lucide="shield-check"></i></span><div class="overline">BEFORE A BACKING CAN BE TRUSTED</div><h2>More than a checkmark.</h2><p>Each layer answers a different question about the people and organization behind a backing.</p><ul><li><strong>Email ownership</strong><span>Can the account holder be reached?</span></li><li><strong>Government ID</strong><span>Did the identity provider verify the person?</span></li><li><strong>Organization review</strong><span>Are the registry, official contact, and staff affiliation confirmed independently?</span></li><li><strong>Duplicate and conflict checks</strong><span>Are the student, witness, and coordinator separate people?</span></li></ul><div class="inline-note"><i data-lucide="info"></i> Real verified backing issuance is not yet enabled. Existing signed credentials are fictional demos.</div></aside>
             </div>

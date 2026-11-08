@@ -10,6 +10,13 @@ const startIdentity = document.querySelector('#identity-start');
 const refreshIdentity = document.querySelector('#identity-refresh');
 const organizationForm = document.querySelector('#organization-form');
 const organizationSubmit = document.querySelector('#organization-submit');
+const rehearsalContent = document.querySelector('#rehearsal-content');
+const rehearsalNote = document.querySelector('#rehearsal-login-note');
+const rehearsalMessage = document.querySelector('#rehearsal-message');
+const rehearsalList = document.querySelector('#rehearsal-list');
+const rehearsalReview = document.querySelector('#rehearsal-review');
+const rehearsalConfirm = document.querySelector('#rehearsal-confirm');
+let inspectedRehearsal;
 let client;
 let config;
 
@@ -50,14 +57,149 @@ function renderStatus(data) {
 }
 
 async function loadAccount() {
-  try { renderStatus(await request('/api/account')); }
+  try {
+    renderStatus(await request('/api/account'));
+    rehearsalContent.hidden = false;
+    rehearsalNote.hidden = true;
+    await refreshAfterAction();
+  }
   catch (error) {
     accountStatus.textContent = error.message;
     startIdentity.disabled = true;
     refreshIdentity.disabled = true;
     organizationSubmit.disabled = true;
+    rehearsalContent.hidden = true;
+    rehearsalNote.hidden = false;
   }
 }
+
+function showRehearsalCode(message, code) {
+  rehearsalMessage.replaceChildren(document.createTextNode(message));
+  const codeElement = document.createElement('span');
+  codeElement.className = 'rehearsal-code';
+  codeElement.textContent = code;
+  rehearsalMessage.append(codeElement);
+}
+
+async function loadRehearsals() {
+  const { rehearsals } = await request('/api/account/rehearsals');
+  rehearsalList.replaceChildren();
+  if (!rehearsals.length) {
+    rehearsalList.textContent = 'No rehearsal requests yet.';
+    return;
+  }
+  for (const item of rehearsals) {
+    const card = document.createElement('div');
+    card.className = 'rehearsal-item';
+    const title = document.createElement('strong');
+    title.textContent = item.fields.title;
+    const status = document.createElement('p');
+    status.textContent = `${item.role} · ${item.status.replaceAll('_', ' ')}`;
+    card.append(title, status);
+    if (item.token) {
+      const publish = document.createElement('button');
+      publish.type = 'button';
+      publish.className = 'button subtle';
+      publish.textContent = 'Publish fictional credential';
+      publish.addEventListener('click', async () => {
+        publish.disabled = true;
+        try {
+          const response = await fetch('/api/demo-credentials/share', {
+            method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: item.token }),
+          });
+          const result = await readApiResponse(response, 'Could not publish the demo credential.');
+          showRehearsalCode('Anyone with this link can see the fictional credential. Links cannot currently be revoked: ', result.url);
+        } catch (error) {
+          rehearsalMessage.textContent = error.message;
+        } finally {
+          publish.disabled = false;
+        }
+      });
+      card.append(publish);
+    }
+    rehearsalList.append(card);
+  }
+}
+
+async function refreshAfterAction() {
+  try { await loadRehearsals(); }
+  catch (error) {
+    const warning = document.createElement('p');
+    warning.textContent = `Request list could not be refreshed: ${error.message}`;
+    rehearsalMessage.append(warning);
+  }
+}
+
+document.querySelector('#rehearsal-create').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = Object.fromEntries(new FormData(form));
+  const transcript = values.transcript.trim();
+  const button = form.querySelector('button');
+  button.disabled = true;
+  try {
+    const result = await request('/api/account/rehearsals', {
+      method: 'POST',
+      body: JSON.stringify({ ...values, transcript, mappings: [{ skill: values.skill, quote: transcript }] }),
+    });
+    form.reset();
+    showRehearsalCode('Share this one-time code with the student: ', result.code);
+    await refreshAfterAction();
+  } catch (error) {
+    rehearsalMessage.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector('#rehearsal-inspect').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const role = document.querySelector('#rehearsal-role').value;
+  const code = document.querySelector('#rehearsal-code').value.trim();
+  const button = form.querySelector('button');
+  inspectedRehearsal = undefined;
+  rehearsalReview.hidden = true;
+  button.disabled = true;
+  try {
+    const result = await request('/api/account/rehearsals/inspect', { method: 'POST', body: JSON.stringify({ role, code }) });
+    inspectedRehearsal = { role, code };
+    document.querySelector('#rehearsal-review-text').textContent =
+      `Project: ${result.fields.title}. Student: ${result.fields.student}. Witness: ${result.fields.witness}. Vouch: “${result.fields.transcript}” Skill: ${result.fields.mappings.map(mapping => mapping.skill).join(', ')}.`;
+    rehearsalConfirm.textContent = role === 'student' ? 'Accept and create coordinator code' : 'Approve and issue fictional credential';
+    rehearsalReview.hidden = false;
+    rehearsalMessage.textContent = 'Review the fictional request before continuing.';
+  } catch (error) {
+    rehearsalMessage.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+rehearsalConfirm.addEventListener('click', async () => {
+  if (!inspectedRehearsal) return;
+  const { role, code } = inspectedRehearsal;
+  rehearsalConfirm.disabled = true;
+  try {
+    const action = role === 'student' ? 'accept' : 'issue';
+    const result = await request(`/api/account/rehearsals/${action}`, { method: 'POST', body: JSON.stringify({ code }) });
+    inspectedRehearsal = undefined;
+    rehearsalReview.hidden = true;
+    document.querySelector('#rehearsal-code').value = '';
+    if (role === 'student') showRehearsalCode('Share this one-time code with the coordinator: ', result.code);
+    else rehearsalMessage.textContent = 'Fictional credential issued. The student can refresh their requests to publish it.';
+    await refreshAfterAction();
+  } catch (error) {
+    rehearsalMessage.textContent = error.message;
+  } finally {
+    rehearsalConfirm.disabled = false;
+  }
+});
+
+document.querySelector('#rehearsal-refresh').addEventListener('click', async () => {
+  try { await loadRehearsals(); }
+  catch (error) { rehearsalMessage.textContent = error.message; }
+});
 
 async function initialize() {
   try {

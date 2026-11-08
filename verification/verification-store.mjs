@@ -1,4 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
+import { createHash, randomBytes } from 'node:crypto';
+
+const codeHash = code => createHash('sha256').update(code).digest('hex');
+const newCode = () => randomBytes(24).toString('base64url');
+const CODE_PATTERN = /^[A-Za-z0-9_-]{32}$/;
+const CODE_LIFETIME = 24 * 60 * 60 * 1000;
 
 export function createVerificationStore(filename) {
   const db = new DatabaseSync(filename);
@@ -25,7 +31,38 @@ export function createVerificationStore(filename) {
       registry_status TEXT NOT NULL DEFAULT 'pending',
       contact_status TEXT NOT NULL DEFAULT 'pending',
       membership_status TEXT NOT NULL DEFAULT 'pending'
+    );
+    CREATE TABLE IF NOT EXISTS rehearsal_vouches (
+      id TEXT PRIMARY KEY,
+      witness_subject TEXT NOT NULL REFERENCES accounts(subject),
+      student_subject TEXT REFERENCES accounts(subject),
+      coordinator_subject TEXT REFERENCES accounts(subject),
+      fields TEXT NOT NULL,
+      status TEXT NOT NULL,
+      invite_hash TEXT,
+      invite_expires INTEGER,
+      credential_token TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     );`);
+
+  function eligibleAccount(subject) {
+    const account = db.prepare('SELECT subject, email, email_verified FROM accounts WHERE subject=?').get(subject);
+    return account?.email_verified ? account : null;
+  }
+
+  function distinctAccounts(subjects) {
+    const accounts = subjects.map(eligibleAccount);
+    return accounts.every(Boolean) &&
+      new Set(accounts.map(account => account.subject)).size === accounts.length &&
+      new Set(accounts.map(account => account.email.trim().toLowerCase())).size === accounts.length;
+  }
+
+  function findInvitation(code, status, now) {
+    if (typeof code !== 'string' || !CODE_PATTERN.test(code)) return null;
+    return db.prepare('SELECT * FROM rehearsal_vouches WHERE invite_hash=? AND status=? AND invite_expires>?')
+      .get(codeHash(code), status, now) || null;
+  }
 
   return {
     upsertAccount(subject, email, verified) {
@@ -62,6 +99,60 @@ export function createVerificationStore(filename) {
     },
     setIdentityStatus(subject, sessionId, status) {
       db.prepare('UPDATE accounts SET identity_status=? WHERE subject=? AND identity_session=?').run(status, subject, sessionId);
+    },
+    createRehearsal(subject, fields, now = Date.now()) {
+      if (!eligibleAccount(subject)) throw new Error('A verified email account is required.');
+      const id = newCode();
+      const code = newCode();
+      db.prepare(`INSERT INTO rehearsal_vouches(id,witness_subject,fields,status,invite_hash,invite_expires,created_at,updated_at)
+        VALUES(?,?,?,'awaiting_student',?,?,?,?)`)
+        .run(id, subject, JSON.stringify(fields), codeHash(code), now + CODE_LIFETIME, now, now);
+      return { id, code };
+    },
+    inspectRehearsal(subject, code, role, now = Date.now()) {
+      const status = role === 'student' ? 'awaiting_student' : role === 'coordinator' ? 'awaiting_coordinator' : null;
+      if (!status) return null;
+      const row = findInvitation(code, status, now);
+      if (!row) return null;
+      const participants = role === 'student' ? [row.witness_subject, subject] : [row.witness_subject, row.student_subject, subject];
+      if (!distinctAccounts(participants)) return null;
+      return { id: row.id, fields: JSON.parse(row.fields), status: row.status };
+    },
+    acceptRehearsal(subject, code, now = Date.now()) {
+      const row = findInvitation(code, 'awaiting_student', now);
+      if (!row || !distinctAccounts([row.witness_subject, subject])) return null;
+      const coordinatorCode = newCode();
+      const result = db.prepare(`UPDATE rehearsal_vouches SET student_subject=?,status='awaiting_coordinator',
+        invite_hash=?,invite_expires=?,updated_at=? WHERE id=? AND status='awaiting_student' AND invite_hash=? AND invite_expires>?`)
+        .run(subject, codeHash(coordinatorCode), now + CODE_LIFETIME, now, row.id, codeHash(code), now);
+      return result.changes === 1 ? { id: row.id, code: coordinatorCode } : null;
+    },
+    reserveRehearsal(subject, code, now = Date.now()) {
+      const row = findInvitation(code, 'awaiting_coordinator', now);
+      if (!row || !distinctAccounts([row.witness_subject, row.student_subject, subject])) return null;
+      const result = db.prepare(`UPDATE rehearsal_vouches SET coordinator_subject=?,status='signing',updated_at=?
+        WHERE id=? AND status='awaiting_coordinator' AND invite_hash=? AND invite_expires>?`)
+        .run(subject, now, row.id, codeHash(code), now);
+      return result.changes === 1 ? { id: row.id, fields: JSON.parse(row.fields) } : null;
+    },
+    completeRehearsal(id, subject, token, now = Date.now()) {
+      const row = db.prepare("SELECT witness_subject,student_subject,coordinator_subject FROM rehearsal_vouches WHERE id=? AND status='signing' AND coordinator_subject=?").get(id, subject);
+      if (!row || !distinctAccounts([row.witness_subject, row.student_subject, row.coordinator_subject])) return false;
+      return db.prepare(`UPDATE rehearsal_vouches SET status='issued',credential_token=?,invite_hash=NULL,invite_expires=NULL,updated_at=?
+        WHERE id=? AND coordinator_subject=? AND status='signing'`).run(token, now, id, subject).changes === 1;
+    },
+    releaseRehearsal(id, subject, now = Date.now()) {
+      db.prepare(`UPDATE rehearsal_vouches SET status='awaiting_coordinator',coordinator_subject=NULL,updated_at=?
+        WHERE id=? AND coordinator_subject=? AND status='signing'`).run(now, id, subject);
+    },
+    listRehearsals(subject) {
+      return db.prepare(`SELECT id, witness_subject, student_subject, coordinator_subject, fields, status, credential_token, created_at, updated_at
+        FROM rehearsal_vouches WHERE witness_subject=? OR student_subject=? OR coordinator_subject=? ORDER BY created_at DESC LIMIT 50`)
+        .all(subject, subject, subject).map(row => ({
+          id: row.id, fields: JSON.parse(row.fields), status: row.status, createdAt: row.created_at, updatedAt: row.updated_at,
+          role: row.witness_subject === subject ? 'witness' : row.student_subject === subject ? 'student' : 'coordinator',
+          ...(row.student_subject === subject && row.status === 'issued' ? { token: row.credential_token } : {}),
+        }));
     },
     close() { db.close(); },
   };

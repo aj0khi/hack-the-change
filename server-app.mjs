@@ -264,6 +264,68 @@ export function createApp({ config, store, demoCredentials, authenticate, getUse
 
   app.get('/api/account', (request, response) => response.json(publicStatus(store, request.subject)));
 
+  // An authenticated rehearsal remains a fictional demo, not a verified backing.
+  app.use('/api/account/rehearsals', rateLimit({ windowMs: 15 * 60 * 1000, limit: 100, standardHeaders: true, legacyHeaders: false, message: rateLimitMessage }));
+  app.get('/api/account/rehearsals', (request, response) => {
+    try { response.json({ rehearsals: store.listRehearsals(request.subject) }); }
+    catch (error) {
+      console.error('[rehearsal] list failed:', error.message);
+      response.status(503).json({ error: 'Could not load rehearsal requests.' });
+    }
+  });
+  app.post('/api/account/rehearsals', (request, response) => {
+    if (!demoCredentials) return response.status(503).json({ error: 'Demo signing is unavailable.' });
+    try {
+      const fields = demoCredentials.validateInput(request.body);
+      response.status(201).json(store.createRehearsal(request.subject, fields));
+    } catch (error) {
+      if (error instanceof TypeError) return response.status(400).json({ error: error.message });
+      console.error('[rehearsal] create failed:', error.message);
+      response.status(503).json({ error: 'Could not create the rehearsal request.' });
+    }
+  });
+  const invalidInvitation = response => response.status(400).json({
+    error: 'This code is invalid, expired, already used, or requires a different verified email account.',
+  });
+  app.post('/api/account/rehearsals/inspect', (request, response) => {
+    try {
+      const result = store.inspectRehearsal(request.subject, request.body?.code, request.body?.role);
+      if (!result) return invalidInvitation(response);
+      response.json(result);
+    } catch (error) {
+      console.error('[rehearsal] inspection failed:', error.message);
+      response.status(503).json({ error: 'Could not inspect the rehearsal request.' });
+    }
+  });
+  app.post('/api/account/rehearsals/accept', (request, response) => {
+    try {
+      const result = store.acceptRehearsal(request.subject, request.body?.code);
+      if (!result) return invalidInvitation(response);
+      response.json(result);
+    } catch (error) {
+      console.error('[rehearsal] acceptance failed:', error.message);
+      response.status(503).json({ error: 'Could not accept the rehearsal request.' });
+    }
+  });
+  app.post('/api/account/rehearsals/issue', async (request, response) => {
+    if (!demoCredentials) return response.status(503).json({ error: 'Demo signing is unavailable.' });
+    let reservation;
+    try {
+      reservation = store.reserveRehearsal(request.subject, request.body?.code);
+      if (!reservation) return invalidInvitation(response);
+      const token = await demoCredentials.issue(reservation.fields);
+      if (!store.completeRehearsal(reservation.id, request.subject, token)) throw new Error('Could not complete the reserved rehearsal.');
+      response.json({ id: reservation.id, status: 'issued' });
+    } catch (error) {
+      if (reservation) {
+        try { store.releaseRehearsal(reservation.id, request.subject); }
+        catch (releaseError) { console.error('[rehearsal] release failed:', releaseError.message); }
+      }
+      console.error('[rehearsal] issuance failed:', error.message);
+      response.status(503).json({ error: 'Could not issue the demo credential. Try again.' });
+    }
+  });
+
   app.post('/api/account/identity', async (request, response) => {
     if (!stripe) return response.status(503).json({ error: 'Identity verification is not configured.' });
     const account = store.account(request.subject);

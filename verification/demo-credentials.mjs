@@ -115,6 +115,9 @@ export async function createDemoCredentialStore(filename, { env = {} } = {}) {
     keySource: signing.source,
     trustedIssuers,
     verify,
+    validateInput(input) {
+      return cleanFields(input);
+    },
     async issue(input) {
       return sign({ ...cleanFields(input), issuedAt: new Date().toISOString().slice(0, 10) });
     },

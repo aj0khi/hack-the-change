@@ -136,6 +136,19 @@ The demo API permits 600 requests per IP per 15 minutes; each lens endpoint has 
 
 After Auth0 sign-in, the student workspace derives a display name from the email address before the `@`, omitting numbers (for example, `jane.doe123@example.com` becomes “Jane Doe”). This is only a display label, not a verified legal name; it does not change the email address, fictional student profiles or credential claims. The simulated entry does not collect an email.
 
+### Authenticated three-account rehearsal
+
+The **Account verification** page also includes an optional, separate rehearsal of witness, student and coordinator review. It requires configured Auth0 and three accounts with verified email addresses. It is for **fictional text only**, not actual student data or employment credentials.
+
+1. Sign in as the witness, create a fictional vouch and copy the one-time student code. Share it privately; it is displayed only once.
+2. Sign in as the student using a different verified email and account. Inspect the code, review the vouch and accept it. Copy the new coordinator code and share it privately.
+3. Sign in as a third, different verified email and account. Inspect the coordinator code, review the words and approve issuance.
+4. The student signs in, refreshes their requests and can choose to publish the fictional credential. Anyone with the resulting link can view it; the link cannot currently be revoked.
+
+The server stores rehearsal records, status and signed tokens in `VERIFICATION_DB`; invitation codes are stored only as hashes, expire after 24 hours and cannot be reused. A lost or expired code requires starting a new request. The server checks the three recorded accounts and their last confirmed email-verification state again at approval; the same subject or email cannot fill two roles. If signing is interrupted by a server crash, a request may remain in `signing`; start a new rehearsal.
+
+**Trust boundary:** This is not a real-world backing or proof of three people: one person may control multiple email addresses, account status is checked when participants sign in rather than continuously, and coordinator/organization authorization, independent identity deduplication and organization review are not implemented. This flow does not enforce the separately displayed Stripe or organization checks. Its credential uses the same fictional demo issuer as the public demo-signing endpoint, which remains available without this workflow. The signature does not establish that the account holder is the named person or that the work happened. Do not claim that all demo issuance is independently reviewed.
+
 The Proofly product name does not need to match your Auth0 API audience. Keep `AUTH0_AUDIENCE` set to the exact identifier shown for your existing Auth0 API; changing the product branding does not require changing that identifier.
 
 Stripe currently advertises the first 50 Identity verifications free, followed by CA$2 per completed document-and-selfie check in Canada. Confirm eligibility and current pricing with [Stripe](https://stripe.com/en-ca/identity#pricing) before using live mode. Test mode does not verify a real identity. No free alternative providing equivalent government-ID checks has been integrated.
