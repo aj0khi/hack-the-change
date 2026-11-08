@@ -6,6 +6,7 @@ import { projects, keywordProjectSuggestions } from "./lens/projects.mjs";
 import { skillTerms } from "./lens/skills.mjs";
 import { buildStudentPathway } from "./lens/student-pathway.mjs";
 import { makeShareCard } from "./verification/share-card.mjs";
+import { linkedinCaption } from "./verification/linkedin-caption.mjs";
 
 const examples = {
   transcript:
@@ -78,6 +79,9 @@ let credentials = [];
 let selectedCredential;
 let pendingVouch;
 let shareToken;
+let linkedinCard;
+let linkedinPreviewUrl;
+let linkedinPopup;
 
 async function demoRequest(path, body) {
   const response = await fetch(path, body === undefined ? { cache: "no-store" } : {
@@ -485,6 +489,10 @@ document.addEventListener("click", (event) => {
   if (shareButton) {
     shareToken = credentials[Number(shareButton.dataset.share)];
     document.querySelector("#share-result").hidden = true;
+    document.querySelector("#linkedin-review").hidden = true;
+    document.querySelector("#prepare-linkedin").hidden = true;
+    document.querySelector("#linkedin-unavailable").hidden = true;
+    document.querySelector("#linkedin-status").textContent = "";
     document.querySelector("#share-error").textContent = "";
     document.querySelector("#publish-credential").hidden = false;
     document.querySelector("#share-dialog").showModal();
@@ -526,7 +534,12 @@ document.querySelector("#verify-token").addEventListener("click", async () => {
     : "Not valid: the signature does not match the credential or trusted demo key.";
 });
 document.querySelector("#close-share").addEventListener("click", () => document.querySelector("#share-dialog").close());
-document.querySelector("#share-dialog").addEventListener("close", () => { shareToken = undefined; });
+document.querySelector("#share-dialog").addEventListener("close", () => {
+  shareToken = undefined;
+  linkedinCard = undefined;
+  if (linkedinPreviewUrl) URL.revokeObjectURL(linkedinPreviewUrl);
+  linkedinPreviewUrl = undefined;
+});
 document.querySelector("#publish-credential").addEventListener("click", async (event) => {
   const button = event.currentTarget;
   button.disabled = true;
@@ -543,9 +556,91 @@ document.querySelector("#publish-credential").addEventListener("click", async (e
     document.querySelector("#native-share").hidden = !navigator.share;
     document.querySelector("#share-result").hidden = false;
     button.hidden = true;
+    try {
+      const status = await demoRequest("/api/linkedin/status");
+      document.querySelector("#prepare-linkedin").hidden = !status.enabled;
+      document.querySelector("#linkedin-unavailable").hidden = status.enabled;
+    } catch {
+      document.querySelector("#linkedin-unavailable").hidden = false;
+      document.querySelector("#linkedin-unavailable").textContent = "Could not check LinkedIn availability. You can still download the image and post it manually.";
+    }
   } catch (error) {
     document.querySelector("#share-error").textContent = error.message;
   } finally { button.disabled = false; }
+});
+async function updateLinkedinStatus() {
+  const status = await demoRequest("/api/linkedin/status");
+  document.querySelector("#post-linkedin").disabled = !status.connected;
+  document.querySelector("#disconnect-linkedin").hidden = !status.connected;
+  document.querySelector("#connect-linkedin").textContent = status.connected ? "Reconnect LinkedIn" : "Connect LinkedIn";
+  document.querySelector("#linkedin-status").textContent = status.connected ? `LinkedIn connected${status.name ? ` as ${status.name}` : ""}. Review the post, then confirm to publish.` : "Connect LinkedIn to publish this post.";
+}
+document.querySelector("#prepare-linkedin").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  document.querySelector("#share-error").textContent = "";
+  try {
+    const result = await verifyCredential(shareToken, issuer.publicKey);
+    if (!result.valid) throw new Error("This demo credential could not be verified.");
+    const link = document.querySelector("#share-link").href;
+    linkedinCard = await makeShareCard(result.payload, link, document.querySelector("#share-qr").src);
+    if (linkedinPreviewUrl) URL.revokeObjectURL(linkedinPreviewUrl);
+    linkedinPreviewUrl = URL.createObjectURL(linkedinCard);
+    document.querySelector("#linkedin-image-preview").src = linkedinPreviewUrl;
+    document.querySelector("#linkedin-caption").textContent = linkedinCaption(result.payload, link);
+    document.querySelector("#post-linkedin").disabled = true;
+    await updateLinkedinStatus();
+    document.querySelector("#linkedin-review").hidden = false;
+  } catch (error) {
+    document.querySelector("#share-error").textContent = error.message || "Could not prepare the LinkedIn post.";
+  } finally { button.disabled = false; }
+});
+document.querySelector("#connect-linkedin").addEventListener("click", () => {
+  linkedinPopup = window.open("/api/linkedin/connect", "proofly-linkedin", "popup,width=600,height=720");
+  if (!linkedinPopup) document.querySelector("#linkedin-status").textContent = "Please allow pop-ups to connect LinkedIn.";
+});
+document.querySelector("#disconnect-linkedin").addEventListener("click", async () => {
+  try {
+    await demoRequest("/api/linkedin/disconnect", {});
+    await updateLinkedinStatus();
+  } catch (error) { document.querySelector("#linkedin-status").textContent = error.message || "Could not disconnect LinkedIn."; }
+});
+window.addEventListener("message", async (event) => {
+  if (event.origin !== location.origin || event.source !== linkedinPopup || event.data?.type !== "proofly-linkedin") return;
+  linkedinPopup = undefined;
+  if (event.data.status !== "connected") {
+    document.querySelector("#linkedin-status").textContent = "LinkedIn connection was cancelled or failed. Check your LinkedIn app settings and try again.";
+    return;
+  }
+  try { await updateLinkedinStatus(); }
+  catch { document.querySelector("#linkedin-status").textContent = "Could not check the LinkedIn connection. Try again."; }
+});
+document.querySelector("#post-linkedin").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  if (!linkedinCard) return;
+  button.disabled = true;
+  document.querySelector("#connect-linkedin").disabled = true;
+  document.querySelector("#disconnect-linkedin").disabled = true;
+  document.querySelector("#linkedin-status").textContent = "Publishing to LinkedIn…";
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = () => reject(new Error("Could not read the credential image."));
+      reader.readAsDataURL(linkedinCard);
+    });
+    const id = new URL(document.querySelector("#share-link").href).pathname.split("/").pop();
+    await demoRequest("/api/linkedin/post", { id, image });
+    document.querySelector("#disconnect-linkedin").hidden = true;
+    document.querySelector("#connect-linkedin").textContent = "Connect LinkedIn";
+    document.querySelector("#linkedin-status").textContent = "Posted publicly on LinkedIn! Check your LinkedIn profile to see it.";
+  } catch (error) {
+    document.querySelector("#linkedin-status").textContent = `${error.message || "Could not publish."} Check your LinkedIn profile before trying again.`;
+    button.disabled = true;
+  } finally {
+    document.querySelector("#connect-linkedin").disabled = false;
+    document.querySelector("#disconnect-linkedin").disabled = false;
+  }
 });
 document.querySelector("#copy-share").addEventListener("click", async () => {
   try {

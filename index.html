@@ -636,10 +636,24 @@
         <p class="share-link"><a id="share-link" target="_blank" rel="noopener noreferrer"></a></p>
         <button class="button subtle" id="copy-share" type="button">Copy link</button>
         <div class="share-platforms">
-          <a class="button primary" id="share-linkedin" target="_blank" rel="noopener noreferrer">Share on LinkedIn</a>
+          <button class="button primary" id="prepare-linkedin" type="button" hidden>Prepare LinkedIn post</button>
+          <a class="button subtle" id="share-linkedin" target="_blank" rel="noopener noreferrer">Open LinkedIn with link</a>
           <button class="button subtle" id="native-share" type="button" hidden>More sharing options</button>
           <button class="button subtle" id="download-share-card" type="button">Download demo image</button>
         </div>
+        <p id="linkedin-unavailable" class="share-hint" hidden>Direct LinkedIn posting is not configured. You can still download the image and post it manually.</p>
+        <section id="linkedin-review" hidden aria-labelledby="linkedin-review-title">
+          <h3 id="linkedin-review-title">Review your LinkedIn post</h3>
+          <p class="share-hint">This will be a public LinkedIn post. The image includes the credential details and a QR code. Nothing is posted until you confirm below.</p>
+          <img id="linkedin-image-preview" alt="Preview of the fictional demo credential image" />
+          <pre id="linkedin-caption"></pre>
+          <div class="share-platforms">
+            <button class="button subtle" id="connect-linkedin" type="button">Connect LinkedIn</button>
+            <button class="button subtle" id="disconnect-linkedin" type="button" hidden>Disconnect</button>
+            <button class="button primary" id="post-linkedin" type="button" disabled>Post publicly on LinkedIn</button>
+          </div>
+          <p id="linkedin-status" role="status"></p>
+        </section>
         <p class="share-hint">For Instagram, upload the downloaded image yourself and add the verification link separately. Images and links show fictional demo credentials, not real awards.</p>
       </div>
       <p id="share-error" role="status"></p>

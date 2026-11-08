@@ -7,6 +7,7 @@ import { inspectBadgrAssertion } from './verification/badgr.mjs';
 import { runLens } from './lens/lens.mjs';
 import { projects } from './lens/projects.mjs';
 import QRCode from 'qrcode';
+import { createLinkedInRouter } from './verification/linkedin.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const LENS_CACHE_MAX = 100;
@@ -26,6 +27,7 @@ const STATIC_FILES = {
   '/lens/student-pathway.mjs': 'lens/student-pathway.mjs',
   '/verification/verification-ui.mjs': 'verification/verification-ui.mjs',
   '/verification/share-card.mjs': 'verification/share-card.mjs',
+  '/verification/linkedin-caption.mjs': 'verification/linkedin-caption.mjs',
   '/vendor/auth0.js': 'node_modules/@auth0/auth0-spa-js/dist/auth0-spa-js.production.js',
 };
 
@@ -56,7 +58,7 @@ function publicStatus(store, subject) {
  * getJobs: async () => Adzuna snapshot for /api/jobs.
  * lensCache / onLensCacheChange: saved lens answers keyed by request, so re-runs don't spend model quota.
  */
-export function createApp({ config, store, demoCredentials, authenticate, getUserInfo, stripe, badgeFetcher, lens = {}, getJobs, lensCache = new Map(), onLensCacheChange }) {
+export function createApp({ config, store, demoCredentials, authenticate, getUserInfo, stripe, badgeFetcher, linkedinFetcher, lens = {}, getJobs, lensCache = new Map(), onLensCacheChange }) {
   const app = express();
   app.disable('x-powered-by');
   app.use('/api', (_request, response, next) => { response.set('Cache-Control', 'no-store'); next(); });
@@ -87,6 +89,7 @@ export function createApp({ config, store, demoCredentials, authenticate, getUse
     catch { response.json({ jobs: [], fetchedAt: null, source: 'none' }); }
   });
 
+  app.use('/api/linkedin', createLinkedInRouter({ config, demoCredentials, fetcher: linkedinFetcher }));
   app.use(express.json({ limit: '8kb' }));
   app.get('/api/demo-credentials/issuer', (_request, response) => {
     if (!demoCredentials) return response.status(503).json({ error: 'Demo signing is unavailable.' });

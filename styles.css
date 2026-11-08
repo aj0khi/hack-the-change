@@ -1102,6 +1102,8 @@ footer {
 .share-platforms { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .share-platforms .button { text-decoration: none; }
 .share-hint { font-size: 13px; line-height: 1.5; color: #655b70; }
+#linkedin-image-preview { max-width: 320px; width: 100%; height: auto; }
+#linkedin-caption { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; background: #f7f4f9; padding: 12px; }
 .role-badge {
   display: flex;
   gap: 6px;
