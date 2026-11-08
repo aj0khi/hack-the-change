@@ -36,6 +36,10 @@
           <input id="employer-job-file" type="file" accept=".txt,.md,text/plain,text/markdown">
           <p class="share-hint">Upload a plain-text .txt or .md file (up to 12,000 characters), or paste the description above. PDF and Word files are not supported yet.</p>
           <button class="button subtle" id="employer-example" type="button">Use example job</button>
+          <label for="employer-student-select">SELECT A FICTIONAL DEMO STUDENT FOR THIS JOB</label>
+          <select id="employer-student-select" disabled><option value="">Loading sample students…</option></select>
+          <button class="button subtle" id="employer-add-student" type="button" disabled>Add selected student to comparison</button>
+          <p class="share-hint" id="employer-student-hint" role="status">Demo-only keyword overlap ranking. The most overlapping profiles appear first; it is not an ability, suitability, or hiring score. Real students are not listed—add only verification links they have shared with you.</p>
           <label for="employer-links">PROOFLY VERIFICATION LINKS</label>
           <textarea id="employer-links" rows="8" required spellcheck="false" placeholder="Paste one full /verify/ link per line. Leave a blank line between students."></textarea>
           <p class="share-hint">Paste links for one student per group, one link per line. Leave a blank line between students. Up to 10 students and 10 links per student. Each link must be from this Proofly site and shared with you.</p>

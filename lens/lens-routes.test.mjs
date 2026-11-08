@@ -20,6 +20,7 @@ test('serves only the listed static files, including the lens folder', async () 
       assert.equal((await fetch(`${base}${path}`)).status, 404, path);
     assert.equal((await (await fetch(`${base}/api/config`)).json()).enabled, false);
     assert.equal((await fetch(`${base}/api/unknown`)).status, 404);
+    assert.equal((await fetch(`${base}/api/employer/demo-students`)).status, 503);
   } finally { server.close(); }
 });
 const post = (base, body) => fetch(`${base}/api/lens`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });

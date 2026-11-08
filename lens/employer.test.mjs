@@ -109,6 +109,27 @@ test('separately shared fictional students can each be analyzed for the same pos
   } finally { await t.close(); }
 });
 
+test('employer demo student picker returns repeatable fictional signed profiles', async () => {
+  const t = await setup();
+  try {
+    const first = await (await fetch(`${t.base}/api/employer/demo-students`)).json();
+    const second = await (await fetch(`${t.base}/api/employer/demo-students`)).json();
+    assert.equal(first.students.length, 4);
+    assert.deepEqual(first, second);
+    assert.deepEqual(first.students.map(student => student.name), ['Alex Rivera', 'Jordan Lee', 'Sam Chen', 'Riley Morgan']);
+    for (const student of first.students) {
+      assert.equal(student.links.length, 1);
+      assert(student.skills.length >= 3);
+      const link = new URL(student.links[0]);
+      assert.equal(link.origin, origin);
+      assert.match(link.pathname, /^\/verify\/[A-Za-z0-9_-]{32}$/);
+      const credential = await t.credentials.getPublished(link.pathname.split('/').at(-1));
+      assert.equal(credential.payload.student, student.name);
+      assert.equal(credential.payload.demoProfile, true);
+    }
+  } finally { await t.close(); }
+});
+
 test('student and employer pages contain their own tools', async () => {
   const t = await setup();
   try {
@@ -122,6 +143,8 @@ test('student and employer pages contain their own tools', async () => {
     assert.match(employer, /id="employer-job-select"/);
     assert.match(employer, /id="employer-job-file"/);
     assert.match(employer, /accept="\.txt,\.md,text\/plain,text\/markdown"/);
+    assert.match(employer, /id="employer-student-select"/);
+    assert.match(employer, /id="employer-add-student"/);
     assert.match(employer, /Leave a blank line between students/);
     assert.match(employer, /id="badge-lookup-form"/);
     assert.doesNotMatch(employer, /id="credentials-list"|id="vouch-form"|id="job-description"/);

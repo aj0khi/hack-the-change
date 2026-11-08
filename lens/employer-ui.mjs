@@ -1,4 +1,5 @@
 import { jobExample } from './job-example.mjs';
+import { skillTerms } from './skills.mjs';
 
 const form = document.querySelector('#employer-form');
 const results = document.querySelector('#employer-results');
@@ -9,8 +10,57 @@ const jobSource = document.querySelector('#employer-job-source');
 const jobField = document.querySelector('#employer-job');
 const jobFile = document.querySelector('#employer-job-file');
 const exampleButton = document.querySelector('#employer-example');
+const studentSelect = document.querySelector('#employer-student-select');
+const addStudentButton = document.querySelector('#employer-add-student');
+const studentHint = document.querySelector('#employer-student-hint');
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 let jobs = [];
+let demoStudents = [];
+
+function rankedStudents() {
+  const requestedSkills = Object.entries(skillTerms)
+    .filter(([, pattern]) => pattern.test(jobField.value))
+    .map(([skill]) => skill);
+  return demoStudents.map((student, index) => ({
+    ...student,
+    originalIndex: index,
+    matchedSkills: student.skills.filter(skill => requestedSkills.includes(skill)),
+  })).sort((a, b) => b.matchedSkills.length - a.matchedSkills.length || a.name.localeCompare(b.name));
+}
+
+function updateStudentPicker() {
+  const previous = studentSelect.value;
+  const ranked = rankedStudents();
+  studentSelect.replaceChildren(new Option(ranked.length ? 'Choose a fictional demo student…' : 'Demo students unavailable', ''));
+  for (const [index, student] of ranked.entries()) {
+    const option = new Option(
+      `${index === 0 && student.matchedSkills.length ? 'Most keyword overlap · ' : ''}${student.name} — ${student.matchedSkills.length} matching demo skill${student.matchedSkills.length === 1 ? '' : 's'}${student.matchedSkills.length ? ` (${student.matchedSkills.join(', ')})` : ''}`,
+      String(student.originalIndex),
+    );
+    studentSelect.add(option);
+  }
+  studentSelect.value = previous;
+  studentSelect.disabled = ranked.length === 0 || button.disabled;
+  addStudentButton.disabled = !studentSelect.value || button.disabled;
+  if (!jobField.value.trim()) studentHint.textContent = 'Choose or add a job description to rank demo profiles. Demo-only keyword overlap—not a skill, ability, or hiring score. Real students are not listed; add only links shared with you.';
+  else if (!ranked.some(student => student.matchedSkills.length)) studentHint.textContent = 'No recognized demo-skill keywords in this posting; fictional students are listed alphabetically. This is not a hiring score. Real students are not listed; add only links shared with you.';
+  else studentHint.textContent = 'Fictional demo students are ordered by the number of listed sample skills whose keywords appear in this posting. This is not an ability, suitability, or hiring score. Real students are not listed; add only links shared with you.';
+}
+
+async function loadDemoStudents() {
+  try {
+    const response = await fetch('/api/employer/demo-students');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Demo students could not be loaded.');
+    demoStudents = Array.isArray(data.students) ? data.students : [];
+    updateStudentPicker();
+  } catch (error) {
+    studentSelect.replaceChildren(new Option('Demo students unavailable', ''));
+    studentSelect.disabled = true;
+    addStudentButton.disabled = true;
+    studentHint.textContent = error.message || 'Could not load fictional demo students. You can still add shared verification links below.';
+  }
+}
 
 async function loadJobs() {
   try {
@@ -35,6 +85,7 @@ async function loadJobs() {
 }
 
 function inputsChanged() {
+  updateStudentPicker();
   results.textContent = 'Inputs changed. Compare again to update the results.';
 }
 
@@ -94,7 +145,40 @@ exampleButton.addEventListener('click', () => {
   jobSource.textContent = 'Fictional example job.';
   inputsChanged();
 });
+studentSelect.addEventListener('change', () => {
+  addStudentButton.disabled = !studentSelect.value || button.disabled;
+});
+addStudentButton.addEventListener('click', () => {
+  const student = demoStudents[Number(studentSelect.value)];
+  if (!student || !student.links.length) {
+    studentHint.textContent = 'This fictional demo profile has no published verification links.';
+    return;
+  }
+  const textarea = document.querySelector('#employer-links');
+  const groups = textarea.value.trim()
+    ? textarea.value.trim().split(/\r?\n\s*\r?\n/).map(group => group.split(/\r?\n/).map(line => line.trim()).filter(Boolean)).filter(group => group.length)
+    : [];
+  if (groups.length >= 10) {
+    studentHint.textContent = 'The comparison already has 10 student groups. Remove one before adding another.';
+    return;
+  }
+  const existing = new Set(groups.flat());
+  const links = student.links.filter(link => !existing.has(link));
+  if (!links.length) {
+    studentHint.textContent = `${student.name} is already in the comparison.`;
+    return;
+  }
+  if (links.length > 10) {
+    studentHint.textContent = 'This student has too many demo credentials to add as one group.';
+    return;
+  }
+  groups.push(links);
+  textarea.value = groups.map(group => group.join('\n')).join('\n\n');
+  inputsChanged();
+  studentHint.textContent = `Added fictional demo student ${student.name}. Review their links and the job before comparing.`;
+});
 loadJobs();
+loadDemoStudents();
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
@@ -113,6 +197,8 @@ form.addEventListener('submit', async event => {
   jobFile.disabled = true;
   jobSelect.disabled = true;
   exampleButton.disabled = true;
+  studentSelect.disabled = true;
+  addStudentButton.disabled = true;
   results.textContent = 'Verifying shared credentials and comparing evidence…';
   results.setAttribute('aria-busy', 'true');
   try {
@@ -151,6 +237,7 @@ form.addEventListener('submit', async event => {
     jobFile.disabled = false;
     jobSelect.disabled = jobs.length === 0;
     exampleButton.disabled = false;
+    updateStudentPicker();
     results.removeAttribute('aria-busy');
   }
 });

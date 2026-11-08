@@ -109,6 +109,15 @@ export function createApp({ config, store, demoCredentials, authenticate, getUse
     try { response.json(getJobs ? await getJobs() : { jobs: [], fetchedAt: null, source: 'none' }); }
     catch { response.json({ jobs: [], fetchedAt: null, source: 'none' }); }
   });
+  app.get('/api/employer/demo-students', async (_request, response) => {
+    if (!demoCredentials) return response.status(503).json({ error: 'Fictional demo students are unavailable.' });
+    try {
+      response.json({ students: await demoCredentials.getFictionalDemoStudents(config.appOrigin) });
+    } catch (error) {
+      console.error('[employer demo students] loading failed:', error.message);
+      response.status(503).json({ error: 'Could not load fictional demo students.' });
+    }
+  });
 
   app.use(express.json({ limit: '8kb' }));
   app.get('/api/demo-credentials/issuer', (_request, response) => {

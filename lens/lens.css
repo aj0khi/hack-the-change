@@ -7,6 +7,12 @@
 .employer-notice { padding: 14px; background: #f0eaf7; border-radius: 8px; line-height: 1.5; }
 .employer-page .lens-input label { display: block; margin-top: 20px; }
 .employer-page .lens-input textarea { width: 100%; }
+.employer-page .lens-layout,
+.employer-page .lens-layout > .lens-input,
+.employer-page .lens-layout > .lens-output { min-width: 0; }
+.employer-page .lens-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.employer-page .lens-input select,
+.employer-page .lens-input textarea { box-sizing: border-box; max-width: 100%; min-width: 0; }
 .employer-page .lens-input .job-picker label { margin-top: 0; }
 .employer-page .lens-input .job-picker select:disabled { opacity: .7; }
 #student-ai-analyze { margin-top: 12px; }
@@ -17,6 +23,7 @@
 .employer-page .badge-lookup { margin-top: 24px; }
 .workspace-switch { margin: 16px 0; align-self: flex-start; text-decoration: none; }
 @media (max-width: 800px) { .workspace-switch { margin: 12px 0 0; } }
+@media (max-width: 800px) { .employer-page .lens-layout { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 520px) {
   .topbar .avatar-small { display: none; }
   .topbar .breadcrumb { min-width: 0; }
