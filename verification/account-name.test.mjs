@@ -6,6 +6,9 @@ test('derives a display name from the email local part', () => {
   assert.equal(displayNameFromEmail('jane.doe+demo@example.com'), 'Jane Doe');
   assert.equal(displayNameFromEmail('sam_chen-smith@example.com'), 'Sam Chen Smith');
   assert.equal(displayNameFromEmail('élise@example.com'), 'Élise');
+  assert.equal(displayNameFromEmail('jane.doe123@example.com'), 'Jane Doe');
+  assert.equal(displayNameFromEmail('ja12ne_4doe@example.com'), 'Jane Doe');
+  assert.equal(displayNameFromEmail('élise٣@example.com'), 'Élise');
 });
 
 test('rejects unusable addresses and bounds the display name', () => {

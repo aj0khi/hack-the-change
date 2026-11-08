@@ -134,7 +134,7 @@ The account page uses Auth0 sign-in and checks the account's email verification 
 
 The demo API permits 600 requests per IP per 15 minutes; each lens endpoint has an additional limit of 20 requests per minute. Limits are held in memory per server process, so shared networks can exhaust a shared IP's allowance. A rate-limited response includes `Retry-After` and a JSON error.
 
-After Auth0 sign-in, the student workspace derives a display name from the email address before the `@` (for example, `jane.doe@example.com` becomes “Jane Doe”). This is only a display label, not a verified legal name; it does not change fictional student profiles or credential claims. The simulated entry does not collect an email.
+After Auth0 sign-in, the student workspace derives a display name from the email address before the `@`, omitting numbers (for example, `jane.doe123@example.com` becomes “Jane Doe”). This is only a display label, not a verified legal name; it does not change the email address, fictional student profiles or credential claims. The simulated entry does not collect an email.
 
 The Proofly product name does not need to match your Auth0 API audience. Keep `AUTH0_AUDIENCE` set to the exact identifier shown for your existing Auth0 API; changing the product branding does not require changing that identifier.
 
