@@ -34,7 +34,7 @@ function updateStudentPicker() {
   studentSelect.replaceChildren(new Option(ranked.length ? 'Choose a fictional demo student…' : 'Demo students unavailable', ''));
   for (const [index, student] of ranked.entries()) {
     const option = new Option(
-      `${index === 0 && student.matchedSkills.length ? 'Most keyword overlap · ' : ''}${student.name} — ${student.matchedSkills.length} matching demo skill${student.matchedSkills.length === 1 ? '' : 's'}${student.matchedSkills.length ? ` (${student.matchedSkills.join(', ')})` : ''}`,
+      `${index + 1}. ${student.name} · ${student.matchedSkills.length} match${student.matchedSkills.length === 1 ? '' : 'es'}`,
       String(student.originalIndex),
     );
     studentSelect.add(option);
@@ -86,7 +86,8 @@ async function loadJobs() {
 
 function inputsChanged() {
   updateStudentPicker();
-  results.textContent = 'Inputs changed. Compare again to update the results.';
+  document.querySelector('#employer-results-count').hidden = true;
+  results.innerHTML = '<div class="employer-empty-state employer-ready-state"><span class="employer-empty-icon" aria-hidden="true">↗</span><h3>Ready to compare</h3><p>Review the job and add students, then compare their shared evidence against the role.</p></div>';
 }
 
 jobFile.addEventListener('change', async () => {
@@ -215,8 +216,12 @@ form.addEventListener('submit', async event => {
         outcomes.push({ error: error.message || 'Analysis failed.' });
       }
     }
-    results.innerHTML = '<p class="share-hint">Review each student’s evidence and the full posting yourself. Counts are not fit scores; AI may extract different requirements for each student. Never use these results as a hiring decision.</p>' + outcomes.map(({ data, error }, groupIndex) => {
-    if (error) return `<section class="lens-result"><h3>Student group ${groupIndex + 1}</h3><p>${escape(error)}</p></section>`;
+    const successful = outcomes.filter(outcome => outcome.data);
+    const count = document.querySelector('#employer-results-count');
+    count.textContent = `${successful.length} ${successful.length === 1 ? 'student' : 'students'}`;
+    count.hidden = !successful.length;
+    results.innerHTML = '<p class="employer-review-note">Review each student’s evidence and the full posting yourself. Keyword counts are not fit scores or hiring recommendations.</p>' + outcomes.map(({ data, error }, groupIndex) => {
+    if (error) return `<section class="employer-candidate employer-candidate-error"><h3>Student group ${groupIndex + 1}</h3><p>${escape(error)}</p></section>`;
     const sources = data.sources.map((source, i) => `<li><a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">Credential ${i + 1}: ${escape(source.title)}</a> — ${escape(source.student)}, ${escape(source.issuer)}; witness ${escape(source.witness)}. Signature valid.</li>`).join('');
     const rows = data.requirements.map(requirement => {
       const matches = requirement.matches.map(match => {
@@ -224,10 +229,11 @@ form.addEventListener('submit', async event => {
         if (!source) return '';
         return `<p class="result-desc">${match.evidenceType ? `<span class="evidence-tag ${match.evidenceType === 'action' ? 'action' : 'praise'}">${escape(match.evidenceType)}</span>` : ''}“${escape(match.quote)}” — ${escape(source.witness)}, ${escape(source.student)} · <a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">View credential</a>${match.why ? `<br>${escape(match.why)}` : ''}${match.skill ? `<br>Keyword hint: ${escape(match.skill)}` : ''}</p>`;
       }).join('');
-      return `<article class="lens-result"><h3>${escape(requirement.text)}${requirement.kind ? ` <span class="kind-tag">${escape(requirement.kind)}</span>` : ''}</h3>${matches || '<p class="result-desc">No matching evidence found. This does not mean the person lacks the skill.</p>'}</article>`;
+      return `<article class="lens-result"><h3>${escape(requirement.text)}${requirement.kind ? ` <span class="kind-tag">${escape(requirement.kind)}</span>` : ''}</h3>${requirement.context ? `<p class="employer-posting-context">Posting context: “${escape(requirement.context)}”</p>` : ''}${matches || '<p class="result-desc">No matching evidence found. This does not mean the person lacks the skill.</p>'}</article>`;
     }).join('');
     const matched = data.requirements.filter(requirement => requirement.matches.length).length;
-    return `<section class="employer-candidate"><h3>Student group ${groupIndex + 1}: ${escape(data.sources[0].student)}</h3><div class="lens-summary${data.mode === 'offline' ? ' offline' : ''}"><strong>${data.mode === 'ai' ? 'AI-assisted analysis' : 'Offline keyword hints'} · ${matched} of ${data.requirements.length} extracted requirements have suggested evidence</strong><span class="lens-source">${data.mode === 'ai' ? `${escape(data.model)} · Quotes checked against signed evidence; ${Number(data.stats.droppedByGrounding)} proposed matches rejected. Review relevance yourself.` : 'Keyword matches are approximate and do not establish that a requirement is met.'}</span></div><h4>Signed demo sources</h4><ul>${sources}</ul><p class="share-hint">Matching names do not prove these credentials belong to the same person. Confirm ownership independently.</p>${rows || '<p>No requirements were identified. Review the full job posting manually.</p>'}</section>`;
+    const matchLabel = data.mode === 'offline' ? 'skill keywords with evidence' : 'requirements with evidence';
+    return `<section class="employer-candidate"><div class="employer-candidate-heading"><div><span class="employer-candidate-label">SHARED DEMO PROFILE</span><h3>${escape(data.sources[0].student)}</h3></div><span class="employer-match-count">${matched} / ${data.requirements.length}<small>${matchLabel}</small></span></div><div class="lens-summary${data.mode === 'offline' ? ' offline' : ''}"><strong>${data.mode === 'ai' ? 'AI-assisted comparison' : 'Keyword comparison'}</strong><span class="lens-source">${data.mode === 'ai' ? `${escape(data.model)} · ${Number(data.stats.droppedByGrounding)} unsupported quote${Number(data.stats.droppedByGrounding) === 1 ? '' : 's'} rejected by grounding checks.` : 'Approximate keyword matches only; they do not establish that a requirement is met.'}</span></div><details class="employer-source-details"><summary>${data.sources.length} signed demo source${data.sources.length === 1 ? '' : 's'}</summary><ul>${sources}</ul><p>Names do not establish identity. Confirm ownership independently.</p></details><div class="employer-requirements">${rows || '<p>No requirements were identified. Review the full job posting manually.</p>'}</div></section>`;
     }).join('');
   } catch (error) {
     results.textContent = error.message || 'Could not analyze the shared credentials.';

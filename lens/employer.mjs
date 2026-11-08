@@ -31,12 +31,17 @@ export async function analyzePublishedCredentials({ posting, links }, { appOrigi
   const result = await runLens({ posting, credentials: credentials.map(c => c.token), issuerPublicKey: store.publicKey }, { generate, model });
   if (result.status !== 200) return result;
   if (!result.body.fallback) return { status: 200, body: { mode: 'ai', sources, ...result.body } };
-  const lines = posting.split(/\n+|(?<=[.!?])\s+/).map(line => line.replace(/^\s*[-•*]\s*/, '').trim()).filter(line => line.length > 3).slice(0, 20);
-  const requirements = lines.map(text => {
-    const matches = credentials.flatMap(({ payload }, index) => payload.mappings
-      .filter(mapping => skillTerms[mapping.skill]?.test(text) && (!/\bsql\b/i.test(text) || /\bsql\b/i.test(mapping.quote)))
-      .map(mapping => ({ credentialId: String(index), quote: mapping.quote, skill: mapping.skill })));
-    return { text, matches };
-  });
+  const postingLines = posting.split(/\n+|(?<=[.!?])\s+/)
+    .map(line => line.replace(/^\s*[-•*]\s*/, '').trim())
+    .filter(Boolean);
+  const requirements = Object.entries(skillTerms)
+    .filter(([, pattern]) => pattern.test(posting))
+    .map(([skill, pattern]) => {
+      const context = postingLines.find(line => pattern.test(line)) || '';
+      const matches = credentials.flatMap(({ payload }, index) => payload.mappings
+        .filter(mapping => mapping.skill === skill)
+        .map(mapping => ({ credentialId: String(index), quote: mapping.quote, skill: mapping.skill })));
+      return { text: skill, context: context.length > 180 ? `${context.slice(0, 177)}…` : context, matches };
+    });
   return { status: 200, body: { mode: 'offline', sources, requirements } };
 }

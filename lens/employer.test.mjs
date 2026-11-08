@@ -33,6 +33,9 @@ test('employer lens resolves multiple published links without local student cred
     assert.deepEqual(data.sources.map(source => source.witness), ['Doug', 'Jane']);
     assert.deepEqual(data.requirements[0].matches.map(match => match.credentialId), ['0', '1']);
     assert.equal(data.requirements[0].matches[0].quote, transcript);
+    assert.equal(data.requirements.length, 1);
+    assert.equal(data.requirements[0].text, 'Communication');
+    assert.match(data.requirements[0].context, /Communication skills are required/);
     assert.equal(JSON.stringify(data).includes('eyJ'), false);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.equal((await fetch(`${t.base}/employer`)).status, 200);

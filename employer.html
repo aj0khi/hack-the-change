@@ -3,8 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f8f6fa" />
+    <meta name="description" content="Compare a job's skill requirements with evidence students choose to share." />
     <title>Employer lens | Proofly</title>
     <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/lens/lens.css" />
     <script type="module" src="/lens/employer-ui.mjs"></script>
@@ -12,57 +17,81 @@
   <body class="employer-page">
     <header class="employer-header">
       <a class="brand" href="/" aria-label="Proofly student workspace"><span class="brand-mark">p<span>.</span></span><span class="brand-name">proofly<small>GOOD WORK GOES FURTHER</small></span></a>
-      <a class="button subtle" href="/">Student workspace</a>
+      <a class="employer-workspace-link" href="/">Student workspace <span aria-hidden="true">↗</span></a>
     </header>
     <main class="employer-main">
-      <div class="page-heading">
-        <div><div class="overline">EMPLOYER WORKSPACE · FICTIONAL DEMO</div>
-          <h1>See the story behind the skills.</h1>
-          <p>Compare a job posting with demo credentials students have shared with you.</p>
+      <div class="employer-hero">
+        <div>
+          <div class="overline"><span class="overline-dot"></span> EMPLOYER WORKSPACE</div>
+          <h1>Evidence, in context.</h1>
+          <p>Compare a role with skills and signed evidence students choose to share.</p>
         </div>
+        <span class="employer-demo-badge">FICTIONAL DEMO</span>
       </div>
-      <p class="employer-notice">This is a public demo, not an authenticated admin account. A valid signature does not establish identity, issuer trust, or the truth of a claim. Do not use this as a hiring decision.</p>
-      <form id="employer-form" class="lens-layout">
-        <div class="lens-input">
-          <div class="card-label"><span>01 / JOB AND CREDENTIALS</span></div>
-          <div class="job-picker">
-            <label for="employer-job-select">PICK A CALGARY JOB</label>
-            <select id="employer-job-select" disabled><option value="">Loading available postings…</option></select>
-            <p class="job-source" id="employer-job-source" role="status">Loading Adzuna postings…</p>
-          </div>
-          <label for="employer-job">JOB POSTING</label>
-          <textarea id="employer-job" rows="9" maxlength="12000" required placeholder="Paste the job posting here."></textarea>
-          <label for="employer-job-file">OR UPLOAD A JOB DESCRIPTION</label>
-          <input id="employer-job-file" type="file" accept=".txt,.md,text/plain,text/markdown">
-          <p class="share-hint">Upload a plain-text .txt or .md file (up to 12,000 characters), or paste the description above. PDF and Word files are not supported yet.</p>
-          <button class="button subtle" id="employer-example" type="button">Use example job</button>
-          <label for="employer-student-select">SELECT A FICTIONAL DEMO STUDENT FOR THIS JOB</label>
-          <select id="employer-student-select" disabled><option value="">Loading sample students…</option></select>
-          <button class="button subtle" id="employer-add-student" type="button" disabled>Add selected student to comparison</button>
-          <p class="share-hint" id="employer-student-hint" role="status">Demo-only keyword overlap ranking. The most overlapping profiles appear first; it is not an ability, suitability, or hiring score. Real students are not listed—add only verification links they have shared with you.</p>
-          <label for="employer-links">PROOFLY VERIFICATION LINKS</label>
-          <textarea id="employer-links" rows="8" required spellcheck="false" placeholder="Paste one full /verify/ link per line. Leave a blank line between students."></textarea>
-          <p class="share-hint">Paste links for one student per group, one link per line. Leave a blank line between students. Up to 10 students and 10 links per student. Each link must be from this Proofly site and shared with you.</p>
-          <p class="share-hint">Analyzing sends the job and signed demo evidence to the configured AI provider when available. If unavailable, clearly labeled keyword matching is used. Do not enter sensitive information.</p>
-          <button class="button primary" id="employer-analyze" type="submit">Compare shared evidence</button>
+      <form id="employer-form" class="employer-workbench">
+        <div class="employer-form-panel">
+          <section class="employer-form-section" aria-labelledby="job-section-title">
+            <div class="employer-section-heading"><span class="employer-step">01</span><div><h2 id="job-section-title">Choose a role</h2><p>Select a Calgary posting or add your own job description.</p></div></div>
+            <div class="employer-field">
+              <label for="employer-job-select">CALGARY JOB POSTINGS</label>
+              <select id="employer-job-select" disabled><option value="">Loading available postings…</option></select>
+              <p class="job-source" id="employer-job-source" role="status">Loading Adzuna postings…</p>
+            </div>
+            <div class="employer-field">
+              <label for="employer-job">JOB DESCRIPTION</label>
+              <textarea id="employer-job" rows="7" maxlength="12000" required placeholder="Paste the job description here."></textarea>
+              <div class="employer-file-row">
+                <label for="employer-job-file">Upload .txt or .md</label>
+                <input id="employer-job-file" type="file" accept=".txt,.md,text/plain,text/markdown">
+                <span>12,000 characters maximum</span>
+              </div>
+              <p class="share-hint">PDF and Word documents aren’t supported. You can also use the example role.</p>
+              <button class="employer-text-button" id="employer-example" type="button">Load example job</button>
+            </div>
+          </section>
+          <section class="employer-form-section" aria-labelledby="student-section-title">
+            <div class="employer-section-heading"><span class="employer-step">02</span><div><h2 id="student-section-title">Add students to compare</h2><p>Demo profiles are ranked by sample-skill keyword overlap for this role.</p></div></div>
+            <div class="employer-field">
+              <label for="employer-student-select">FICTIONAL DEMO STUDENTS</label>
+              <div class="employer-select-row">
+                <select id="employer-student-select" disabled><option value="">Loading sample students…</option></select>
+                <button class="button subtle" id="employer-add-student" type="button" disabled>Add student</button>
+              </div>
+              <p class="share-hint" id="employer-student-hint" role="status">Demo-only keyword overlap—not an ability or hiring score. Real students appear only when they share links with you.</p>
+            </div>
+          </section>
+          <section class="employer-form-section" aria-labelledby="links-section-title">
+            <div class="employer-section-heading"><span class="employer-step">03</span><div><h2 id="links-section-title">Add shared evidence</h2><p>Keep each student’s verification links in their own group.</p></div></div>
+            <div class="employer-field">
+              <label for="employer-links">PROOFLY VERIFICATION LINKS</label>
+              <textarea id="employer-links" rows="5" required spellcheck="false" placeholder="One full /verify/ link per line. Leave a blank line between students."></textarea>
+              <p class="share-hint">Up to 10 students and 10 links per student. Only analyze links shared with you.</p>
+            </div>
+            <p class="employer-privacy-note">The job description and signed demo evidence are sent to the configured AI provider when available. Don’t include sensitive information.</p>
+            <button class="button primary employer-submit" id="employer-analyze" type="submit">Compare evidence <span aria-hidden="true">→</span></button>
+          </section>
         </div>
-        <section class="lens-output" aria-labelledby="employer-results-heading">
-          <div class="card-label"><span>02 / RESULTS</span></div>
-          <h2 id="employer-results-heading">Student evidence comparison</h2>
-          <div id="employer-results" role="status" aria-live="polite"><p>Enter a job and at least one shared credential link to begin.</p></div>
+        <section class="employer-results-panel" aria-labelledby="employer-results-heading">
+          <div class="employer-results-heading">
+            <div><div class="overline">COMPARISON</div><h2 id="employer-results-heading">Evidence by student</h2></div>
+            <span class="employer-results-count" id="employer-results-count" hidden></span>
+          </div>
+          <div id="employer-results" class="employer-results-body" role="status" aria-live="polite">
+            <div class="employer-empty-state"><span class="employer-empty-icon" aria-hidden="true">↗</span><h3>Your comparison will appear here</h3><p>Choose a job and add at least one student to review evidence against the role.</p></div>
+          </div>
+          <details class="employer-disclaimer"><summary>About this comparison</summary><p>This public prototype is not an authenticated employer account. A valid signature confirms that this server signed the displayed words; it does not verify identity, issuer trust, or whether the claim is true. AI and keyword matches are not hiring recommendations. Review the complete job posting and each source independently.</p></details>
         </section>
       </form>
-      <section class="badge-lookup" aria-labelledby="badge-lookup-title">
-        <div class="card-label"><span>03 / PUBLIC BADGE RECORD</span></div>
-        <h2 id="badge-lookup-title">Look up a Badgr badge</h2>
-        <p>Check the status of a publicly shared hosted assertion on Badgr / Parchment Digital Badges.</p>
+      <details class="badge-lookup employer-badge-lookup">
+        <summary><span><strong id="badge-lookup-title">Check a public badge record</strong><small>Optional Badgr / Parchment lookup</small></span><span class="badge-lookup-chevron" aria-hidden="true">+</span></summary>
+        <p>Check the status of a publicly shared hosted assertion.</p>
         <form id="badge-lookup-form">
           <div class="badge-fields"><div><label for="badge-region">Provider region</label><select id="badge-region" name="region"><option value="canada">Canada</option><option value="us">United States</option><option value="legacy">Legacy Badgr.io</option></select></div><div><label for="badge-id">Assertion ID</label><input id="badge-id" name="assertionId" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9_-]{1,128}" maxlength="128" required placeholder="e.g. abc123"></div></div>
           <button class="button primary" type="submit">Look up badge</button>
         </form>
-        <p class="badge-warning">This checks the provider's public record, expiry and revocation only. It does not verify recipient ownership, issuer trust, signatures, or complete Open Badges compliance. Do not use it as a hiring decision.</p>
+        <p class="badge-warning">This checks the provider's public record, expiry and revocation only. It does not verify recipient ownership, issuer trust, signatures, or complete Open Badges compliance.</p>
         <div id="badge-lookup-result" class="badge-result" role="status" aria-live="polite" hidden></div>
-      </section>
+      </details>
     </main>
   </body>
 </html>
