@@ -10,6 +10,7 @@ import { createApp } from './server-app.mjs';
 import { createVerificationStore } from './verification/verification-store.mjs';
 import { createBedrockGenerator, DEFAULT_BEDROCK_MODEL, DEFAULT_BEDROCK_REGION } from './lens/bedrock.mjs';
 import { loadJobs } from './lens/adzuna.mjs';
+import { createDemoCredentialStore } from './verification/demo-credentials.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 8766);
@@ -29,6 +30,7 @@ const getUserInfo = configured ? async token => {
 } : null;
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const store = createVerificationStore(process.env.VERIFICATION_DB || join(root, 'verification', 'verification.sqlite'));
+const demoCredentials = await createDemoCredentialStore(process.env.DEMO_CREDENTIAL_DB || join(root, 'data', 'demo-credentials.sqlite'));
 
 // Employer Lens: AI model, Calgary jobs (cached in data/), and saved lens answers (data/lens-cache.json).
 const model = process.env.BEDROCK_MODEL_ID || DEFAULT_BEDROCK_MODEL;
@@ -48,5 +50,5 @@ const onLensCacheChange = cache => {
   }, 500);
 };
 
-createApp({ config, store, authenticate, getUserInfo, stripe, lens: { generate, model }, getJobs: () => jobsReady, lensCache, onLensCacheChange })
+createApp({ config, store, demoCredentials, authenticate, getUserInfo, stripe, lens: { generate, model }, getJobs: () => jobsReady, lensCache, onLensCacheChange })
   .listen(port, '0.0.0.0', () => console.log(`Proofly server listening on port ${port} (${appOrigin})`));

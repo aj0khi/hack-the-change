@@ -16,6 +16,7 @@
     "express": "^4.21.2",
     "express-oauth2-jwt-bearer": "^1.7.1",
     "express-rate-limit": "^7.5.0",
+    "qrcode": "^1.5.4",
     "stripe": "^18.0.0"
   }
 }

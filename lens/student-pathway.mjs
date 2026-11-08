@@ -19,7 +19,7 @@ function postingContext(posting, pattern) {
   return `${start ? "…" : ""}${posting.slice(start, end).replace(/\s+/g, " ").trim()}${end < posting.length ? "…" : ""}`;
 }
 
-// Credentials passed here must already have been verified against the browser's issuer key.
+// Credentials passed here must already have been verified against the demo issuer key.
 export function buildStudentPathway(posting, validCredentials, catalog = projects) {
   const evidence = validCredentials.flatMap(({ index, payload }) =>
     payload.mappings.map(({ skill, quote }) => ({ skill, quote, index })),

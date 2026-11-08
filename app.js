@@ -1,6 +1,4 @@
 import {
-  createIssuer,
-  signCredential,
   verifyCredential,
   alterCredential,
 } from "./trust.mjs";
@@ -78,6 +76,22 @@ let issuer;
 let credentials = [];
 let selectedCredential;
 let pendingVouch;
+let shareToken;
+
+async function demoRequest(path, body) {
+  const response = await fetch(path, body === undefined ? { cache: "no-store" } : {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Demo credential service is unavailable.");
+  return result;
+}
+
+async function signDemo(payload) {
+  return (await demoRequest("/api/demo-credentials/issue", payload)).token;
+}
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -110,26 +124,57 @@ function writeState(key, value) {
   });
 }
 
+function saveMigratedCredentials(tokens, publicKey) {
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction("state", "readwrite");
+    const state = transaction.objectStore("state");
+    state.put(tokens, "credentials");
+    state.put(publicKey, "server-public-key");
+    state.delete("issuer");
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error || new Error("Storage transaction aborted."));
+  });
+}
+
 async function initialize() {
   try {
     if (!window.isSecureContext || !crypto.subtle)
       throw new Error("Use localhost or HTTPS for credential signing.");
     database = await openDatabase();
-    issuer = await readState("issuer");
-    if (!issuer) {
-      issuer = await createIssuer();
-      await writeState("issuer", issuer);
-    }
+    const oldIssuer = await readState("issuer");
+    const previousServerKey = await readState("server-public-key");
+    issuer = await demoRequest("/api/demo-credentials/issuer");
     const stored = await readState("credentials");
     if (stored === undefined) {
-      credentials = [await signCredential(examples, issuer)];
-      await writeState("credentials", credentials);
-    } else credentials = Array.isArray(stored) ? stored : [];
+      credentials = [await signDemo(examples)];
+    } else {
+      if (!Array.isArray(stored)) throw new Error("Stored credentials have an invalid format.");
+      const migrated = [];
+      let migrationApproved = false;
+      for (const token of stored) {
+        if ((await verifyCredential(token, issuer.publicKey)).valid) {
+          migrated.push(token);
+          continue;
+        }
+        const oldKey = previousServerKey || oldIssuer?.publicKey;
+        const previous = oldKey ? await verifyCredential(token, oldKey) : { valid: false };
+        if (!previous.valid) throw new Error("A saved credential cannot be verified with its original key. It was not changed.");
+        if (!migrationApproved) {
+          if (!window.confirm("To keep your saved demo credentials, their contents must be sent to this server and re-signed with its demo key. They will not be published unless you choose Share. Continue?")) throw new Error("Migration was declined.");
+          migrationApproved = true;
+        }
+        migrated.push(await signDemo(previous.payload));
+      }
+      credentials = migrated;
+    }
+    await saveMigratedCredentials(credentials, issuer.publicKey);
     await renderCredentials();
     renderLens();
   } catch (error) {
+    issuer = undefined;
     document.querySelector(".demo-notice span").textContent =
-      `Credential storage or signing is unavailable: ${error.message}. Use a supported browser on localhost or HTTPS.`;
+      `Credential storage or signing is unavailable: ${error.message}. Saved credentials have not been deleted.`;
     document.querySelector("#vouch-error").textContent =
       "Signing is unavailable in this browser; credentials cannot be issued.";
     await renderCredentials();
@@ -209,7 +254,7 @@ async function renderCredentials() {
         .reverse()
         .map(
           ({ payload, index }) =>
-            `<article class="credential-full"><div class="credential-full-top"><span class="badge-symbol">${icon("award")}</span><div><h3>${escapeHTML(payload.title)}</h3><p>${escapeHTML(payload.issuer)} · ${escapeHTML(payload.issuedAt)} · Demo</p></div><span class="verified">${icon("shield-check")} SIGNATURE VALID</span></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”<strong>— ${escapeHTML(payload.witness)}, community member · ${payload.example ? "fictional example" : "demo entry"}</strong></div>${skillsMarkup(payload)}<div class="credential-actions"><span class="project-meta">EVIDENCE ATTACHED · LOCAL DEMO</span><button class="text-link" type="button" data-credential="${index}">View credential ${icon("arrow-up-right")}</button></div></article>`,
+            `<article class="credential-full"><div class="credential-full-top"><span class="badge-symbol">${icon("award")}</span><div><h3>${escapeHTML(payload.title)}</h3><p>${escapeHTML(payload.issuer)} · ${escapeHTML(payload.issuedAt)} · Demo</p></div><span class="verified">${icon("shield-check")} SIGNATURE VALID</span></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”<strong>— ${escapeHTML(payload.witness)}, community member · ${payload.example ? "fictional example" : "demo entry"}</strong></div>${skillsMarkup(payload)}<div class="credential-actions"><span class="project-meta">EVIDENCE ATTACHED · DEMO</span><button class="text-link" type="button" data-share="${index}">Share ${icon("share-2")}</button><button class="text-link" type="button" data-credential="${index}">View credential ${icon("arrow-up-right")}</button></div></article>`,
         )
         .join("")
     : '<div class="credential-full"><h3>No valid signed credentials yet.</h3><p>Create a demo vouch to get started.</p></div>';
@@ -227,10 +272,10 @@ async function openCredential(index) {
   selectedCredential = token;
   const payload = result.payload;
   document.querySelector("#dialog-content").innerHTML =
-    `<div class="dialog-detail"><h3>${escapeHTML(payload.title)}</h3><p><strong>Issuer:</strong> ${escapeHTML(payload.issuer)} · demo identity</p><p><strong>Witness:</strong> ${escapeHTML(payload.witness)} ${payload.example ? "(fictional example)" : "(demo entry)"}</p><p><strong>Student:</strong> ${escapeHTML(payload.student)}</p><p><strong>Signature:</strong> valid against this browser's demo issuer key</p></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”</div>${payload.mappings.map((mapping) => `<p><span class="skill-chip">${escapeHTML(mapping.skill)}</span> <span class="result-desc">“${escapeHTML(mapping.quote)}”</span></p>`).join("")}`;
+    `<div class="dialog-detail"><h3>${escapeHTML(payload.title)}</h3><p><strong>Issuer:</strong> ${escapeHTML(payload.issuer)} · demo identity</p><p><strong>Witness:</strong> ${escapeHTML(payload.witness)} ${payload.example ? "(fictional example)" : "(demo entry)"}</p><p><strong>Student:</strong> ${escapeHTML(payload.student)}</p><p><strong>Signature:</strong> valid against the server's demo issuer key</p></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”</div>${payload.mappings.map((mapping) => `<p><span class="skill-chip">${escapeHTML(mapping.skill)}</span> <span class="result-desc">“${escapeHTML(mapping.quote)}”</span></p>`).join("")}`;
   document.querySelector("#credential-token").value = token;
   document.querySelector("#verify-result").textContent =
-    "Signature valid against this browser’s demo issuer key.";
+    "Signature valid against the server’s demo issuer key.";
   document.querySelector("#credential-dialog").showModal();
   refreshIcons();
 }
@@ -435,6 +480,14 @@ document.addEventListener("click", (event) => {
   const credentialButton = event.target.closest("[data-credential]");
   if (credentialButton)
     openCredential(Number(credentialButton.dataset.credential));
+  const shareButton = event.target.closest("[data-share]");
+  if (shareButton) {
+    shareToken = credentials[Number(shareButton.dataset.share)];
+    document.querySelector("#share-result").hidden = true;
+    document.querySelector("#share-error").textContent = "";
+    document.querySelector("#publish-credential").hidden = false;
+    document.querySelector("#share-dialog").showModal();
+  }
   const audienceButton = event.target.closest("[data-audience]");
   if (audienceButton && audienceButton.dataset.audience !== lensAudience) {
     lensAudience = audienceButton.dataset.audience;
@@ -468,8 +521,34 @@ document.querySelector("#verify-token").addEventListener("click", async () => {
     issuer.publicKey,
   );
   document.querySelector("#verify-result").textContent = result.valid
-    ? "Signature valid against this browser’s demo issuer key."
+    ? "Signature valid against the server’s demo issuer key."
     : "Not valid: the signature does not match the credential or trusted demo key.";
+});
+document.querySelector("#close-share").addEventListener("click", () => document.querySelector("#share-dialog").close());
+document.querySelector("#share-dialog").addEventListener("close", () => { shareToken = undefined; });
+document.querySelector("#publish-credential").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  document.querySelector("#share-error").textContent = "";
+  try {
+    const result = await demoRequest("/api/demo-credentials/share", { token: shareToken });
+    const link = document.querySelector("#share-link");
+    link.href = result.url;
+    link.textContent = result.url;
+    document.querySelector("#share-qr").src = result.qrUrl;
+    document.querySelector("#share-result").hidden = false;
+    button.hidden = true;
+  } catch (error) {
+    document.querySelector("#share-error").textContent = error.message;
+  } finally { button.disabled = false; }
+});
+document.querySelector("#copy-share").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(document.querySelector("#share-link").href);
+    document.querySelector("#share-error").textContent = "Link copied.";
+  } catch {
+    document.querySelector("#share-error").textContent = "Copy unavailable. Select and copy the link above.";
+  }
 });
 document.querySelector("#example-job").addEventListener("click", () => {
   document.querySelector("#job-description").value = jobExample;
@@ -622,7 +701,7 @@ document
     const button = event.currentTarget;
     button.disabled = true;
     try {
-      const token = await signCredential(pendingVouch, issuer);
+      const token = await signDemo(pendingVouch);
       const updated = [...credentials, token];
       await writeState("credentials", updated);
       credentials = updated;
