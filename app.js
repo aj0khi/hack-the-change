@@ -30,17 +30,7 @@ const examples = {
     },
   ],
 };
-const jobExample = `Client Support Coordinator (Junior) — Bow River Community Services (fictional example), Calgary, AB
-
-We're looking for a warm, organized person to join our front-desk technology team. You'll be the first point of contact for older adults and newcomers who need help with our online booking system, video appointments and shared devices.
-
-What you'll do:
-You will walk clients through using tablets, phones and video-call apps, explaining technical steps in plain language and staying patient when things don't work the first time. You'll create simple how-to guides and checklists for clients and staff, and keep our volunteer and appointment spreadsheets accurate and up to date.
-
-What we're looking for:
-Excellent communication skills with people of all ages and comfort levels with technology. Experience writing clear instructions or documentation. Comfort with spreadsheets (Excel or Google Sheets). Basic SQL or database experience is an asset. A valid Class 5 Alberta driver's licence and a clean police information check are required. CompTIA A+ certification is considered an asset. Availability for some evening and weekend shifts.
-
-We offer a supportive team, paid training and a transit pass.`;
+import { jobExample } from "./lens/job-example.mjs";
 let jobPostings = [];
 let jobDemand; // { total, counts: { [skill]: n } } from /api/jobs
 
@@ -266,6 +256,13 @@ function skillsMarkup(payload) {
 
 async function renderCredentials() {
   const verified = await verifiedCredentials();
+  const studentSelect = document.querySelector("#student-lens-person");
+  const selectedStudent = studentSelect.value;
+  const students = [...new Set(verified.map(({ payload }) => payload.student))];
+  studentSelect.replaceChildren();
+  if (!students.length) studentSelect.add(new Option("No signed demo credentials", ""));
+  for (const student of students) studentSelect.add(new Option(student, student));
+  if (students.includes(selectedStudent)) studentSelect.value = selectedStudent;
   document.querySelectorAll("[data-count]").forEach((element) => {
     element.textContent = verified.length;
   });
@@ -282,7 +279,7 @@ async function renderCredentials() {
         .reverse()
         .map(
           ({ payload, index }) =>
-            `<article class="credential-full"><div class="credential-full-top"><span class="badge-symbol">${icon("award")}</span><div><h3>${escapeHTML(payload.title)}</h3><p>${escapeHTML(payload.issuer)} · ${escapeHTML(payload.issuedAt)} · Demo</p></div><span class="verified">${icon("shield-check")} SIGNATURE VALID</span></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”<strong>— ${escapeHTML(payload.witness)}, community member · ${payload.example ? "fictional example" : "demo entry"}</strong></div>${skillsMarkup(payload)}<div class="credential-actions"><span class="project-meta">EVIDENCE ATTACHED · DEMO</span><button class="text-link" type="button" data-share="${index}">Share ${icon("share-2")}</button><button class="text-link" type="button" data-credential="${index}">View credential ${icon("arrow-up-right")}</button></div></article>`,
+              `<article class="credential-full"><div class="credential-full-top"><span class="badge-symbol">${icon("award")}</span><div><h3>${escapeHTML(payload.title)}</h3><p>${escapeHTML(payload.student)} · ${escapeHTML(payload.issuer)} · ${escapeHTML(payload.issuedAt)} · Demo</p></div><span class="verified">${icon("shield-check")} SIGNATURE VALID</span></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”<strong>— ${escapeHTML(payload.witness)}, community member · ${payload.example ? "fictional example" : "demo entry"}</strong></div>${skillsMarkup(payload)}<div class="credential-actions"><span class="project-meta">EVIDENCE ATTACHED · DEMO</span><button class="text-link" type="button" data-share="${index}">Share ${icon("share-2")}</button><button class="text-link" type="button" data-credential="${index}">View credential ${icon("arrow-up-right")}</button></div></article>`,
         )
         .join("")
     : '<div class="credential-full"><h3>No valid signed credentials yet.</h3><p>Create a demo vouch to get started.</p></div>';
@@ -315,7 +312,8 @@ const DISCLAIMER_STUDENT =
   "Student view uses keyword hints and this browser's signed demo evidence, not an assessment of your ability or a hiring recommendation. Project ideas are fictional. Review the full posting, including qualifications we may miss.";
 
 async function renderStudentPathway(input, target, renderId) {
-  const validCredentials = await verifiedCredentials();
+  const student = document.querySelector("#student-lens-person").value;
+  const validCredentials = (await verifiedCredentials()).filter(({ payload }) => payload.student === student);
   if (renderId !== lensRender) return;
   const skills = buildStudentPathway(input, validCredentials);
   const supported = skills.filter((skill) => skill.evidence.length);
@@ -323,7 +321,7 @@ async function renderStudentPathway(input, target, renderId) {
   const evidenceCards = supported.map((skill) =>
     `<article class="pathway-card"><h4>${escapeHTML(skill.name)}</h4><p class="pathway-context">Posting mentions: “${escapeHTML(skill.context)}”</p>${skill.evidence.map((item) => `<p class="result-desc">Demo evidence · ${escapeHTML(item.skill)}: “${escapeHTML(item.quote)}”</p><button class="text-link" type="button" data-credential="${item.index}">View signed evidence ${icon("arrow-up-right")}</button>`).join("")}</article>`,
   ).join("");
-  const projectMarkup = (project) => `<div class="pathway-project"><div><strong>${escapeHTML(project.title)}</strong><span>${escapeHTML(project.organization)} · ${escapeHTML(project.time)}</span><p>${escapeHTML(project.description)}</p></div><button class="text-link" type="button" data-explore-project="${escapeHTML(project.id)}">View project ${icon("arrow-up-right")}</button></div>`;
+  const projectMarkup = (project) => `<div class="pathway-project"><div><strong>${escapeHTML(project.title)}</strong><span>${escapeHTML(project.organization)} · ${escapeHTML(project.time)}</span><p>${escapeHTML(project.description)}</p>${demandLine(project.skills)}</div><button class="text-link" type="button" data-explore-project="${escapeHTML(project.id)}">View project ${icon("arrow-up-right")}</button></div>`;
   const gapCards = gaps.map((skill) =>
     `<article class="pathway-card"><h4>${escapeHTML(skill.name)}</h4><p class="pathway-context">Posting mentions: “${escapeHTML(skill.context)}”</p><p class="result-desc">No matching demo evidence yet. This does not mean you lack this skill.</p>${findProjectsButton(skill.name)}${skill.projects.length ? `<div class="pathway-projects"><strong>Fictional practice ideas</strong>${skill.projects.slice(0, 2).map(projectMarkup).join("")}${skill.projects.length > 2 ? `<details class="pathway-more"><summary>Show ${skill.projects.length - 2} more ${skill.projects.length === 3 ? "idea" : "ideas"}</summary>${skill.projects.slice(2).map(projectMarkup).join("")}</details>` : ""}</div>` : `<p class="result-desc">No related demo project yet. Consider another way to practise or document this skill.</p>`}</article>`,
   ).join("");
@@ -334,8 +332,11 @@ async function renderStudentPathway(input, target, renderId) {
 }
 
 function renderLens() {
-  if (!lastLens) return;
   const renderId = ++lensRender;
+  document.querySelector("#student-ai-results").textContent = "";
+  document.querySelector("#student-ai-results").removeAttribute("aria-busy");
+  document.querySelector("#student-ai-analyze").disabled = false;
+  if (!lastLens) return;
   const target = document.querySelector("#lens-results");
   document.querySelector("#lens-disclaimer-text").textContent = DISCLAIMER_STUDENT;
   renderStudentPathway(lastLens.input, target, renderId);
@@ -345,6 +346,9 @@ function renderLens() {
 async function analyzeJob() {
   ++lensRender;
   lastLens = undefined;
+  document.querySelector("#student-ai-results").textContent = "";
+  document.querySelector("#student-ai-results").removeAttribute("aria-busy");
+  document.querySelector("#student-ai-analyze").disabled = false;
   const input = document.querySelector("#job-description").value.trim();
   const target = document.querySelector("#lens-results");
   const button = document.querySelector("#analyze-job");
@@ -574,6 +578,9 @@ document.querySelector("#job-select").addEventListener("change", (event) => {
 document.querySelector("#job-description").addEventListener("input", () => {
   ++lensRender;
   lastLens = undefined;
+  document.querySelector("#student-ai-results").textContent = "";
+  document.querySelector("#student-ai-results").removeAttribute("aria-busy");
+  document.querySelector("#student-ai-analyze").disabled = false;
   const target = document.querySelector("#lens-results");
   target.className = "lens-empty";
   target.removeAttribute("aria-busy");
@@ -581,6 +588,53 @@ document.querySelector("#job-description").addEventListener("input", () => {
   document.querySelector("#analyze-job").disabled = false;
 });
 document.querySelector("#analyze-job").addEventListener("click", analyzeJob);
+document.querySelector("#student-lens-person").addEventListener("change", renderLens);
+
+document.querySelector("#student-ai-analyze").addEventListener("click", async () => {
+  const output = document.querySelector("#student-ai-results");
+  const button = document.querySelector("#student-ai-analyze");
+  const posting = document.querySelector("#job-description").value.trim();
+  if (!posting || posting.length > 12000) {
+    output.textContent = "Enter a job posting of at most 12,000 characters first.";
+    return;
+  }
+  const renderId = ++lensRender;
+  button.disabled = true;
+  output.setAttribute("aria-busy", "true");
+  output.textContent = "Checking signed evidence and requesting AI-assisted ideas…";
+  try {
+    if (!issuer) throw new Error("Demo credential verification is unavailable. Try again when the server is ready.");
+    const student = document.querySelector("#student-lens-person").value;
+    const valid = (await verifiedCredentials()).filter(({ payload }) => payload.student === student);
+    if (renderId !== lensRender) return;
+    const response = await fetch("/api/lens", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ posting, credentials: valid.map((item) => item.token), issuerPublicKey: issuer.publicKey }),
+    });
+    const data = await response.json();
+    if (renderId !== lensRender) return;
+    if (!response.ok) throw new Error(data.error || "AI analysis failed.");
+    if (data.fallback) {
+      output.textContent = "AI is unavailable. Use Find evidence for the offline keyword pathway.";
+      return;
+    }
+    const rows = data.requirements.map((requirement) => {
+      const evidence = requirement.matches.map((match) => `<p class="result-desc">“${escapeHTML(match.quote)}” — ${escapeHTML(match.witness)}${match.why ? `<br>${escapeHTML(match.why)}` : ""}</p>`).join("");
+      const suggestions = requirement.suggestedProjects.map((project) => `<div class="pathway-project"><div><strong>${escapeHTML(project.title)}</strong><span>${escapeHTML(project.organization)} · ${escapeHTML(project.time)}</span><p>${escapeHTML(project.why)}</p>${demandLine(project.skills)}</div><button class="text-link" type="button" data-explore-project="${escapeHTML(project.projectId)}">View project ${icon("arrow-up-right")}</button></div>`).join("");
+      return `<article class="lens-result"><h3>${escapeHTML(requirement.text)} <span class="kind-tag">${escapeHTML(requirement.kind)}</span></h3>${evidence || '<p class="result-desc">No matching evidence found. This does not mean you lack this skill.</p>'}${suggestions ? `<div class="pathway-projects"><strong>Fictional practice ideas</strong>${suggestions}</div>` : ""}</article>`;
+    }).join("");
+    output.innerHTML = `<div class="lens-summary"><strong>AI-assisted ideas</strong><span class="lens-source">${escapeHTML(data.model)} · ${data.stats.matched} of ${data.stats.total} requirements have suggested evidence · ${data.stats.droppedByGrounding} proposed quotes rejected. Review relevance yourself.</span></div>${rows || '<p>No requirements were identified. Review the posting yourself.</p>'}<p class="pathway-note">Suggestions are fictional practice ideas, not a measure of fit or a hiring recommendation.</p>`;
+    refreshIcons();
+  } catch (error) {
+    if (renderId === lensRender) output.textContent = error.message || "AI analysis failed.";
+  } finally {
+    if (renderId === lensRender) {
+      button.disabled = false;
+      output.removeAttribute("aria-busy");
+    }
+  }
+});
 
 document
   .querySelector("#vouch-form")
@@ -628,6 +682,7 @@ function openApproval(payload, source) {
     `“${payload.transcript}”`;
   document.querySelector("#approval-skills").textContent =
     `Selected skills: ${payload.mappings.map((m) => m.skill).join(", ")}`;
+  document.querySelector("#approval-student").value = payload.student;
   document.querySelector("#approval-error").textContent = "";
   document.querySelector("#approval-dialog").showModal();
 }
@@ -649,11 +704,16 @@ document
   .querySelector("#approve-vouch")
   .addEventListener("click", async (event) => {
     if (!pendingVouch) return;
+    const student = document.querySelector("#approval-student").value.trim();
+    if (!student || student.length > 100) {
+      document.querySelector("#approval-error").textContent = "Enter a fictional student name of at most 100 characters.";
+      return;
+    }
     const fromKiosk = approvalSource === "kiosk";
     const button = event.currentTarget;
     button.disabled = true;
     try {
-      const token = await signDemo(pendingVouch);
+      const token = await signDemo({ ...pendingVouch, student });
       const updated = [...credentials, token];
       await writeState("credentials", updated);
       credentials = updated;

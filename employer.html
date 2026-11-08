@@ -18,24 +18,33 @@
       <div class="page-heading">
         <div><div class="overline">EMPLOYER WORKSPACE · FICTIONAL DEMO</div>
           <h1>See the story behind the skills.</h1>
-          <p>Compare a job posting with public demo credentials shared with you.</p>
+          <p>Compare a job posting with demo credentials students have shared with you.</p>
         </div>
       </div>
       <p class="employer-notice">This is a public demo, not an authenticated admin account. A valid signature does not establish identity, issuer trust, or the truth of a claim. Do not use this as a hiring decision.</p>
       <form id="employer-form" class="lens-layout">
         <div class="lens-input">
           <div class="card-label"><span>01 / JOB AND CREDENTIALS</span></div>
+          <div class="job-picker">
+            <label for="employer-job-select">PICK A CALGARY JOB</label>
+            <select id="employer-job-select" disabled><option value="">Loading available postings…</option></select>
+            <p class="job-source" id="employer-job-source" role="status">Loading Adzuna postings…</p>
+          </div>
           <label for="employer-job">JOB POSTING</label>
           <textarea id="employer-job" rows="9" maxlength="12000" required placeholder="Paste the job posting here."></textarea>
+          <label for="employer-job-file">OR UPLOAD A JOB DESCRIPTION</label>
+          <input id="employer-job-file" type="file" accept=".txt,.md,text/plain,text/markdown">
+          <p class="share-hint">Upload a plain-text .txt or .md file (up to 12,000 characters), or paste the description above. PDF and Word files are not supported yet.</p>
+          <button class="button subtle" id="employer-example" type="button">Use example job</button>
           <label for="employer-links">PROOFLY VERIFICATION LINKS</label>
-          <textarea id="employer-links" rows="5" required spellcheck="false" placeholder="Paste one full /verify/ link per line"></textarea>
-          <p class="share-hint">Up to 10 links for one student, one per line. Each must come from this Proofly site, be published and have a valid signature. Only use links shared with you.</p>
+          <textarea id="employer-links" rows="8" required spellcheck="false" placeholder="Paste one full /verify/ link per line. Leave a blank line between students."></textarea>
+          <p class="share-hint">Paste links for one student per group, one link per line. Leave a blank line between students. Up to 10 students and 10 links per student. Each link must be from this Proofly site and shared with you.</p>
           <p class="share-hint">Analyzing sends the job and signed demo evidence to the configured AI provider when available. If unavailable, clearly labeled keyword matching is used. Do not enter sensitive information.</p>
-          <button class="button primary" id="employer-analyze" type="submit">Analyze shared evidence</button>
+          <button class="button primary" id="employer-analyze" type="submit">Compare shared evidence</button>
         </div>
         <section class="lens-output" aria-labelledby="employer-results-heading">
           <div class="card-label"><span>02 / RESULTS</span></div>
-          <h2 id="employer-results-heading">Evidence comparison</h2>
+          <h2 id="employer-results-heading">Student evidence comparison</h2>
           <div id="employer-results" role="status" aria-live="polite"><p>Enter a job and at least one shared credential link to begin.</p></div>
         </section>
       </form>

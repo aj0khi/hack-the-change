@@ -94,6 +94,21 @@ test('employer lens refuses to combine evidence with different named students', 
   } finally { await t.close(); }
 });
 
+test('separately shared fictional students can each be analyzed for the same posting', async () => {
+  const t = await setup();
+  try {
+    const token = await t.credentials.issue({ student: 'Alex Example', title: 'Help neighbours', witness: 'Alex', transcript, mappings: [{ skill: 'Communication', quote: transcript }] });
+    const id = await t.credentials.publish(token);
+    const first = await (await t.post({ posting: 'Communication skills', links: [t.link] })).json();
+    const second = await (await t.post({ posting: 'Communication skills', links: [`${origin}/verify/${id}`] })).json();
+    assert.equal(first.sources[0].student, 'Priya Sharma');
+    assert.equal(second.sources[0].student, 'Alex Example');
+    assert.equal(first.requirements[0].matches.length, 1);
+    assert.equal(second.requirements[0].matches.length, 1);
+    assert.equal((await t.post({ posting: 'Communication skills', links: [t.link, `${origin}/verify/${id}`] })).status, 400);
+  } finally { await t.close(); }
+});
+
 test('student and employer pages contain their own tools', async () => {
   const t = await setup();
   try {
@@ -101,8 +116,13 @@ test('student and employer pages contain their own tools', async () => {
     const employer = await (await fetch(`${t.base}/employer`)).text();
     assert.match(student, /id="credentials-list"/);
     assert.match(student, /href="\/employer"/);
+    assert.match(student, /id="student-ai-analyze"/);
     assert.doesNotMatch(student, /id="badge-lookup-form"|id="employer-form"/);
     assert.match(employer, /id="employer-form"/);
+    assert.match(employer, /id="employer-job-select"/);
+    assert.match(employer, /id="employer-job-file"/);
+    assert.match(employer, /accept="\.txt,\.md,text\/plain,text\/markdown"/);
+    assert.match(employer, /Leave a blank line between students/);
     assert.match(employer, /id="badge-lookup-form"/);
     assert.doesNotMatch(employer, /id="credentials-list"|id="vouch-form"|id="job-description"/);
   } finally { await t.close(); }

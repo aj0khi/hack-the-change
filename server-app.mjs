@@ -19,6 +19,7 @@ const STATIC_FILES = {
   '/employer': 'employer.html',
   '/employer.html': 'employer.html',
   '/lens/employer-ui.mjs': 'lens/employer-ui.mjs',
+  '/lens/job-example.mjs': 'lens/job-example.mjs',
   '/styles.css': 'styles.css',
   '/robots.txt': 'robots.txt',
   '/proofly-share-preview.png': 'proofly-share-preview.png',

@@ -7,8 +7,13 @@
 .employer-notice { padding: 14px; background: #f0eaf7; border-radius: 8px; line-height: 1.5; }
 .employer-page .lens-input label { display: block; margin-top: 20px; }
 .employer-page .lens-input textarea { width: 100%; }
+.employer-page .lens-input .job-picker label { margin-top: 0; }
+.employer-page .lens-input .job-picker select:disabled { opacity: .7; }
+#student-ai-analyze { margin-top: 12px; }
+#student-lens-person { display: block; width: 100%; }
 .employer-page .lens-output { overflow-wrap: anywhere; }
 .employer-page .lens-output ul { padding-left: 22px; line-height: 1.6; }
+.employer-candidate { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 20px; }
 .employer-page .badge-lookup { margin-top: 24px; }
 .workspace-switch { margin: 16px 0; align-self: flex-start; text-decoration: none; }
 @media (max-width: 800px) { .workspace-switch { margin: 12px 0 0; } }

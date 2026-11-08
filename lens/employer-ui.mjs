@@ -1,44 +1,160 @@
+import { jobExample } from './job-example.mjs';
+
 const form = document.querySelector('#employer-form');
 const results = document.querySelector('#employer-results');
 const button = document.querySelector('#employer-analyze');
 const fields = [...form.querySelectorAll('textarea')];
+const jobSelect = document.querySelector('#employer-job-select');
+const jobSource = document.querySelector('#employer-job-source');
+const jobField = document.querySelector('#employer-job');
+const jobFile = document.querySelector('#employer-job-file');
+const exampleButton = document.querySelector('#employer-example');
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+let jobs = [];
+
+async function loadJobs() {
+  try {
+    const response = await fetch('/api/jobs');
+    if (!response.ok) throw new Error('Job postings could not be loaded.');
+    const data = await response.json();
+    jobs = Array.isArray(data.jobs) ? data.jobs : [];
+    jobSelect.innerHTML = '<option value="">Choose a posting from Adzuna…</option>';
+    for (const [index, job] of jobs.entries()) {
+      const option = document.createElement('option');
+      option.value = String(index);
+      option.textContent = `${job.title} — ${job.company || 'Unknown employer'}`;
+      jobSelect.append(option);
+    }
+    jobSelect.disabled = jobs.length === 0 || button.disabled;
+    jobSource.textContent = jobs.length ? 'Select a posting, paste your own, or use the fictional example.' : 'No Calgary postings are available. Paste a job or use the fictional example.';
+  } catch {
+    jobSelect.innerHTML = '<option value="">Postings unavailable</option>';
+    jobSelect.disabled = true;
+    jobSource.textContent = 'Could not load Calgary postings. Paste a job or use the fictional example.';
+  }
+}
+
+function inputsChanged() {
+  results.textContent = 'Inputs changed. Compare again to update the results.';
+}
+
+jobFile.addEventListener('change', async () => {
+  const file = jobFile.files[0];
+  if (!file) return;
+  if (!/\.(txt|md)$/i.test(file.name)) {
+    jobSource.textContent = 'Upload a plain-text .txt or .md file.';
+    jobFile.value = '';
+    return;
+  }
+  if (file.size > 48_000) {
+    jobSource.textContent = 'The uploaded file is too large. Keep it under 12,000 characters.';
+    jobFile.value = '';
+    return;
+  }
+  try {
+    const posting = await file.text();
+    if (!posting.trim() || posting.length > 12_000) {
+      jobSource.textContent = 'The file must contain a job description of 1–12,000 characters.';
+      jobFile.value = '';
+      return;
+    }
+    jobField.value = posting;
+    jobSelect.value = '';
+    jobSource.textContent = `Loaded ${file.name}. Review the posting before comparing students.`;
+    inputsChanged();
+  } catch {
+    jobSource.textContent = 'Could not read the file. Try a plain-text .txt or .md file.';
+  }
+  jobFile.value = '';
+});
+
+jobSelect.addEventListener('change', () => {
+  const job = jobSelect.value === '' ? null : jobs[Number(jobSelect.value)];
+  if (!job) return;
+  jobField.value = `${job.title} — ${job.company}, ${job.location}\n\n${job.description}`;
+  jobFile.value = '';
+  jobSource.textContent = `Adzuna posting${job.snippet ? ' (short excerpt; paste the full posting for a fuller check)' : ''}.`;
+  try {
+    const url = new URL(job.url);
+    if (url.protocol === 'https:' || url.protocol === 'http:') {
+      const link = document.createElement('a');
+      link.href = url.href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = ' Open the full posting';
+      jobSource.append(link);
+    }
+  } catch { /* The posting can still be analyzed without an external link. */ }
+  inputsChanged();
+});
+exampleButton.addEventListener('click', () => {
+  jobField.value = jobExample;
+  jobFile.value = '';
+  jobSelect.value = '';
+  jobSource.textContent = 'Fictional example job.';
+  inputsChanged();
+});
+loadJobs();
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
-  const posting = document.querySelector('#employer-job').value.trim();
-  const links = document.querySelector('#employer-links').value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const posting = jobField.value.trim();
+  const groups = document.querySelector('#employer-links').value.trim().split(/\r?\n\s*\r?\n/).map(group => group.split(/\r?\n/).map(line => line.trim()).filter(Boolean)).filter(group => group.length);
+  if (!groups.length) {
+    results.textContent = 'Provide at least one shared verification link.';
+    return;
+  }
+  if (groups.length > 10 || groups.some(group => group.length > 10)) {
+    results.textContent = 'Use at most 10 student groups, with at most 10 links per group.';
+    return;
+  }
   button.disabled = true;
   fields.forEach(field => { field.disabled = true; });
+  jobFile.disabled = true;
+  jobSelect.disabled = true;
+  exampleButton.disabled = true;
   results.textContent = 'Verifying shared credentials and comparing evidence…';
   results.setAttribute('aria-busy', 'true');
   try {
-    const response = await fetch('/api/employer/lens', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ posting, links }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Analysis failed.');
+    const outcomes = [];
+    for (const links of groups) {
+      try {
+        const response = await fetch('/api/employer/lens', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ posting, links }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Analysis failed.');
+        outcomes.push({ data });
+      } catch (error) {
+        outcomes.push({ error: error.message || 'Analysis failed.' });
+      }
+    }
+    results.innerHTML = '<p class="share-hint">Review each student’s evidence and the full posting yourself. Counts are not fit scores; AI may extract different requirements for each student. Never use these results as a hiring decision.</p>' + outcomes.map(({ data, error }, groupIndex) => {
+    if (error) return `<section class="lens-result"><h3>Student group ${groupIndex + 1}</h3><p>${escape(error)}</p></section>`;
     const sources = data.sources.map((source, i) => `<li><a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">Credential ${i + 1}: ${escape(source.title)}</a> — ${escape(source.student)}, ${escape(source.issuer)}; witness ${escape(source.witness)}. Signature valid.</li>`).join('');
     const rows = data.requirements.map(requirement => {
       const matches = requirement.matches.map(match => {
         const source = data.sources[Number(match.credentialId)];
         if (!source) return '';
-        return `<p class="result-desc">“${escape(match.quote)}” — ${escape(source.witness)}, ${escape(source.student)} · <a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">View credential</a>${match.why ? `<br>${escape(match.why)}` : ''}${match.skill ? `<br>Keyword hint: ${escape(match.skill)}` : ''}</p>`;
+        return `<p class="result-desc">${match.evidenceType ? `<span class="evidence-tag ${match.evidenceType === 'action' ? 'action' : 'praise'}">${escape(match.evidenceType)}</span>` : ''}“${escape(match.quote)}” — ${escape(source.witness)}, ${escape(source.student)} · <a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">View credential</a>${match.why ? `<br>${escape(match.why)}` : ''}${match.skill ? `<br>Keyword hint: ${escape(match.skill)}` : ''}</p>`;
       }).join('');
-      return `<article class="lens-result"><h3>${escape(requirement.text)}</h3>${matches || '<p class="result-desc">No matching evidence found. This does not mean the person lacks the skill.</p>'}</article>`;
+      return `<article class="lens-result"><h3>${escape(requirement.text)}${requirement.kind ? ` <span class="kind-tag">${escape(requirement.kind)}</span>` : ''}</h3>${matches || '<p class="result-desc">No matching evidence found. This does not mean the person lacks the skill.</p>'}</article>`;
     }).join('');
-    results.innerHTML = `<div class="lens-summary${data.mode === 'offline' ? ' offline' : ''}"><strong>${data.mode === 'ai' ? 'AI-assisted analysis' : 'Offline keyword hints'}</strong><span class="lens-source">${data.mode === 'ai' ? `Quotes are checked against signed evidence; ${Number(data.stats.droppedByGrounding)} proposed matches were rejected. Review relevance yourself.` : 'AI unavailable: keyword matches are approximate and do not establish that a requirement is met.'}</span></div><h3>Verified demo sources</h3><ul>${sources}</ul><p class="share-hint">Matching names do not prove these credentials belong to the same person. Confirm ownership independently.</p>${rows || '<p>No requirements were identified. Review the full job posting manually.</p>'}<p class="share-hint">This is not a hiring recommendation. A signature does not verify the issuer, witness, or claims.</p>`;
+    const matched = data.requirements.filter(requirement => requirement.matches.length).length;
+    return `<section class="employer-candidate"><h3>Student group ${groupIndex + 1}: ${escape(data.sources[0].student)}</h3><div class="lens-summary${data.mode === 'offline' ? ' offline' : ''}"><strong>${data.mode === 'ai' ? 'AI-assisted analysis' : 'Offline keyword hints'} · ${matched} of ${data.requirements.length} extracted requirements have suggested evidence</strong><span class="lens-source">${data.mode === 'ai' ? `${escape(data.model)} · Quotes checked against signed evidence; ${Number(data.stats.droppedByGrounding)} proposed matches rejected. Review relevance yourself.` : 'Keyword matches are approximate and do not establish that a requirement is met.'}</span></div><h4>Signed demo sources</h4><ul>${sources}</ul><p class="share-hint">Matching names do not prove these credentials belong to the same person. Confirm ownership independently.</p>${rows || '<p>No requirements were identified. Review the full job posting manually.</p>'}</section>`;
+    }).join('');
   } catch (error) {
     results.textContent = error.message || 'Could not analyze the shared credentials.';
   } finally {
     button.disabled = false;
     fields.forEach(field => { field.disabled = false; });
+    jobFile.disabled = false;
+    jobSelect.disabled = jobs.length === 0;
+    exampleButton.disabled = false;
     results.removeAttribute('aria-busy');
   }
 });
-fields.forEach(field => field.addEventListener('input', () => {
-  results.textContent = 'Inputs changed. Analyze again to update the results.';
-}));
+fields.forEach(field => field.addEventListener('input', inputsChanged));
 
 document.querySelector('#badge-lookup-form').addEventListener('submit', async event => {
   event.preventDefault();

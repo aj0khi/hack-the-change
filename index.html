@@ -441,6 +441,9 @@
                   ><i data-lucide="file-text"></i>
                 </div>
                 <h2>What are you looking for?</h2>
+                <label for="student-lens-person">FICTIONAL STUDENT</label>
+                <select id="student-lens-person" aria-describedby="student-lens-person-note"><option value="">No signed demo credentials</option></select>
+                <p id="student-lens-person-note" class="share-hint">Only the selected student's signed demo evidence is used. Names are not identity verification.</p>
                 <p>
                   Paste your full job posting, pick a live Calgary posting, or
                   use the example.
@@ -465,6 +468,8 @@
                     Use example
                   </button>
                 </div>
+                <button type="button" class="button subtle" id="student-ai-analyze">Get AI-assisted ideas</button>
+                <p class="share-hint">Optional: sends this posting and your signed demo evidence to the configured AI provider. Do not enter sensitive information. If AI is unavailable, the keyword pathway is still available.</p>
                 <div class="lens-disclaimer">
                   <i data-lucide="info"></i>
                   <span id="lens-disclaimer-text"
@@ -481,6 +486,7 @@
                   <h2>Let's connect the dots.</h2>
                   <p>Your evidence map will appear here.</p>
                 </div>
+                <div id="student-ai-results" role="status" aria-live="polite"></div>
               </div>
             </div>
           </section>
@@ -761,6 +767,9 @@
         <p id="approval-quote"></p>
         <p id="approval-skills"></p>
       </div>
+      <label for="approval-student">Fictional student name</label>
+      <input id="approval-student" type="text" maxlength="100" required value="Priya Sharma" />
+      <p class="share-hint">Use a fictional name. This is not an identity verification.</p>
       <div class="verify-actions">
         <button class="button subtle" type="button" id="back-to-vouch">
           Back to edit</button
