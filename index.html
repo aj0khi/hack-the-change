@@ -443,6 +443,9 @@
                 <div class="card-label">
                   <span>YOUR WORDS MATTER</span><span>ABOUT 2 MIN</span>
                 </div>
+                <button class="kiosk-entry" type="button" data-view="kiosk">
+                  <i data-lucide="type"></i> Prefer big text? Use easy mode, one question at a time
+                </button>
                 <h2>How did it go?</h2>
                 <p>
                   Use your own words. You can type or use your browser's
@@ -566,6 +569,16 @@
                   <i data-lucide="shield-check"></i> A more human kind of proof.
                 </div>
               </aside>
+            </div>
+          </section>
+          <section class="view kiosk" id="kiosk" hidden aria-labelledby="kiosk-title">
+            <div class="kiosk-shell">
+              <div class="kiosk-top">
+                <p class="kiosk-progress" id="kiosk-progress" aria-live="polite"></p>
+                <button class="kiosk-exit" type="button" data-view="vouch">Exit easy mode</button>
+              </div>
+              <div id="kiosk-step"></div>
+              <p class="kiosk-status" id="kiosk-status" role="status"></p>
             </div>
           </section>
           <section class="view" id="verification" hidden aria-labelledby="verification-title">
