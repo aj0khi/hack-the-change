@@ -36,6 +36,30 @@ function safeText(value, maxLength) {
   return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= maxLength ? value.trim() : null;
 }
 
+// Escapes the transcript and wraps each mapping's quote (first occurrence) in <mark>.
+// Overlapping or adjacent quotes are merged into one highlighted span.
+export function highlightQuotes(transcript, mappings, escape) {
+  const text = String(transcript ?? '');
+  const ranges = (Array.isArray(mappings) ? mappings : [])
+    .map(m => (typeof m?.quote === 'string' && m.quote ? [text.indexOf(m.quote), m.quote.length] : [-1, 0]))
+    .filter(([start]) => start >= 0)
+    .map(([start, length]) => [start, start + length])
+    .sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const range of ranges) {
+    const last = merged.at(-1);
+    if (last && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+    else merged.push([...range]);
+  }
+  let html = '';
+  let cursor = 0;
+  for (const [start, end] of merged) {
+    html += `${escape(text.slice(cursor, start))}<mark>${escape(text.slice(start, end))}</mark>`;
+    cursor = end;
+  }
+  return html + escape(text.slice(cursor));
+}
+
 function publicStatus(store, subject) {
   const account = store.account(subject);
   const organization = store.organization(subject);
@@ -147,7 +171,7 @@ export function createApp({ config, store, demoCredentials, authenticate, getUse
       const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
       const p = result.payload;
       const metadata = `<meta property="og:type" content="website"><meta property="og:title" content="Proofly | Fictional demo credential"><meta property="og:description" content="Explore a fictional skills credential and check its demo signature on Proofly."><meta property="og:url" content="${escape(`${config.appOrigin}/verify/${request.params.id}`)}"><meta property="og:image" content="${escape(`${config.appOrigin}/proofly-share-preview.png`)}"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Proofly fictional demo credential">`;
-      return response.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Verify demo credential | Proofly</title>${metadata}<style>body{margin:0;background:#f7f4f9;color:#30273a;font:16px/1.6 system-ui,sans-serif}main{max-width:620px;margin:6vh auto;padding:24px}article{background:white;border:1px solid #e5dfeb;border-radius:20px;padding:clamp(22px,6vw,42px);box-shadow:0 12px 40px #362a4512}h1{font-size:clamp(26px,6vw,36px);line-height:1.15}.eyebrow{letter-spacing:.12em;font-size:12px;font-weight:700;color:#685576}.status{background:#eee9f6;color:#453455;border-radius:10px;padding:12px;font-weight:700}blockquote{margin:24px 0;padding:16px;border-left:3px solid #a68fc0;background:#f8f5fb}dt{font-weight:700}dd{margin:0 0 12px}.note{font-size:14px;color:#62586c}</style></head><body><main><p class="eyebrow">PROOFLY · PUBLIC DEMO CREDENTIAL</p><article><h1>${escape(p.title)}</h1><p class="status">Signature valid ✓</p><p class="note">Checked against this server's demo issuer key on this visit.</p><blockquote>“${escape(p.transcript)}”<br>— ${escape(p.witness)}, demo witness</blockquote><dl><dt>Student</dt><dd>${escape(p.student)}</dd><dt>Issuing organization</dt><dd>${escape(p.issuer)}</dd><dt>Skills</dt><dd>${p.mappings.map(m => escape(m.skill)).join(', ')}</dd><dt>Issued</dt><dd>${escape(p.issuedAt)}</dd></dl><p class="note">Fictional demo only. A valid signature shows that this server signed these words and they have not changed; it does not verify the witness, organization, or truth of the work. Not an employment credential.</p></article></main></body></html>`);
+      return response.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Verify demo credential | Proofly</title>${metadata}<style>body{margin:0;background:#f7f4f9;color:#30273a;font:16px/1.6 system-ui,sans-serif}main{max-width:620px;margin:6vh auto;padding:24px}article{background:white;border:1px solid #e5dfeb;border-radius:20px;padding:clamp(22px,6vw,42px);box-shadow:0 12px 40px #362a4512}h1{font-size:clamp(26px,6vw,36px);line-height:1.15}.eyebrow{letter-spacing:.12em;font-size:12px;font-weight:700;color:#685576}.status{background:#eee9f6;color:#453455;border-radius:10px;padding:12px;font-weight:700}blockquote{margin:24px 0;padding:16px;border-left:3px solid #a68fc0;background:#f8f5fb}dt{font-weight:700}dd{margin:0 0 12px}.note{font-size:14px;color:#62586c}mark{background:#e6dcf3;color:inherit;border-radius:3px;padding:0 2px}h2{font-size:20px;line-height:1.3;margin:28px 0 4px}.evidence{list-style:none;margin:12px 0 24px;padding:0;display:grid;gap:10px}.evidence li{border:1px solid #e5dfeb;border-radius:12px;padding:12px 14px}.skill{display:block;font-weight:700;color:#453455}.evidence q{display:block;margin-top:4px;color:#30273a}</style></head><body><main><p class="eyebrow">PROOFLY · PUBLIC DEMO CREDENTIAL</p><article><h1>${escape(p.title)}</h1><p class="status">Signature valid ✓</p><p class="note">Checked against this server's demo issuer key on this visit.</p><blockquote>“${highlightQuotes(p.transcript, p.mappings, escape)}”<br>— ${escape(p.witness)}, demo witness</blockquote><dl><dt>Student</dt><dd>${escape(p.student)}</dd><dt>Issuing organization</dt><dd>${escape(p.issuer)}</dd><dt>Issued</dt><dd>${escape(p.issuedAt)}</dd></dl><h2>Skills and the words that support them</h2><p class="note">Each quote appears word for word in the testimonial above (highlighted) and is covered by the signature.</p><ul class="evidence">${p.mappings.map(m => `<li><span class="skill">${escape(m.skill)}</span><q>${escape(m.quote)}</q></li>`).join('')}</ul><p class="note">Fictional demo only. A valid signature shows that this server signed these words and they have not changed; it does not verify the witness, organization, or truth of the work. Not an employment credential.</p></article></main></body></html>`);
     } catch (error) {
       console.error('[demo credentials] verification failed:', error);
       return response.status(503).send('Could not verify the demo credential.');

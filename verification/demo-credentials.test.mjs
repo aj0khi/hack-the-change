@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { createDemoCredentialStore } from './demo-credentials.mjs';
 import { createVerificationStore } from './verification-store.mjs';
-import { createApp } from '../server-app.mjs';
+import { createApp, highlightQuotes } from '../server-app.mjs';
 import { alterCredential, verifyCredential } from '../trust.mjs';
 
 const demo = {
@@ -48,6 +48,8 @@ test('server issues, shares, verifies and retains demo credentials across restar
     assert.match(html, /Signature valid ✓/);
     assert.match(html, /Doug/);
     assert.match(html, /Priya explained each step/);
+    assert.match(html, /<li><span class="skill">Communication<\/span><q>Priya explained each step\.<\/q><\/li>/);
+    assert.match(html, /<mark>Priya explained each step\.<\/mark>/);
     assert.match(html, /fictional demo/i);
     assert.match(html, /<meta property="og:title" content="Proofly \| Fictional demo credential">/);
     assert.match(html, new RegExp(`<meta property="og:url" content="${shared.url}">`));
@@ -91,4 +93,19 @@ test('server issues, shares, verifies and retains demo credentials across restar
     accounts?.close();
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('verify page highlights each quote in the testimonial, merging overlaps and escaping HTML', () => {
+  const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+  const transcript = 'She fixed my <b>printer</b>. Then she wrote the steps down.';
+  assert.equal(
+    highlightQuotes(transcript, [
+      { skill: 'Writing', quote: 'she wrote the steps down.' },
+      { skill: 'Digital', quote: 'She fixed my <b>printer</b>.' },
+      { skill: 'Problem solving', quote: 'fixed my' },
+      { skill: 'Reading', quote: 'not in the transcript' },
+    ], escape),
+    '<mark>She fixed my &lt;b&gt;printer&lt;/b&gt;.</mark> Then <mark>she wrote the steps down.</mark>',
+  );
+  assert.equal(highlightQuotes('No quotes here.', [], escape), 'No quotes here.');
 });
