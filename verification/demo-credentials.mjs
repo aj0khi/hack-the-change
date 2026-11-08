@@ -30,13 +30,14 @@ export async function createDemoCredentialStore(filename) {
       const title = text(input?.title, 150);
       const witness = text(input?.witness, 40);
       const transcript = text(input?.transcript, 2000);
+      const student = input?.student === undefined ? 'Priya Sharma' : text(input.student, 100);
       const mappings = input?.mappings;
-      if (!title || !witness || !transcript || !Array.isArray(mappings) || mappings.length < 1 || mappings.length > 9 ||
+      if (!title || !witness || !transcript || !student || !Array.isArray(mappings) || mappings.length < 1 || mappings.length > 9 ||
         mappings.some(m => !m || !Object.hasOwn(skillTerms, m.skill) || typeof m.quote !== 'string' || !m.quote.trim() || !transcript.includes(m.quote))) {
-        throw new TypeError('Provide a project, witness, transcript, and supported skills grounded in the transcript.');
+        throw new TypeError('Provide a demo student name, project, witness, transcript, and supported skills grounded in the transcript.');
       }
       const payload = {
-        title, witness, transcript, issuer: 'Community Centre (fictional demo)', student: 'Priya Sharma',
+        title, witness, transcript, issuer: 'Community Centre (fictional demo)', student,
         example: input.example === true, issuedAt: new Date().toISOString().slice(0, 10),
         mappings: mappings.map(({ skill, quote }) => ({ skill, quote })),
       };
@@ -55,6 +56,13 @@ export async function createDemoCredentialStore(filename) {
       const row = db.prepare('SELECT token FROM shared_demo_credentials WHERE id=?').get(id);
       if (!row) return null;
       return verifyCredential(row.token, issuer.publicKey);
+    },
+    async getPublished(id) {
+      if (!/^[A-Za-z0-9_-]{32}$/.test(id)) return null;
+      const row = db.prepare('SELECT token FROM shared_demo_credentials WHERE id=?').get(id);
+      if (!row) return null;
+      const result = await verifyCredential(row.token, issuer.publicKey);
+      return result.valid ? { token: row.token, payload: result.payload } : { valid: false };
     },
     close() { db.close(); },
   };

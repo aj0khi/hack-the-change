@@ -58,9 +58,9 @@
             <span class="nav-count" data-count>0</span>
           </button>
           <div class="nav-divider"></div>
-          <div class="workspace-label secondary">THE OTHER SIDE</div>
+          <div class="workspace-label secondary">MORE TOOLS</div>
           <button class="nav-link" data-view="lens" type="button">
-            <i data-lucide="scan-search"></i> Employer lens
+            <i data-lucide="scan-search"></i> Student skills lens
           </button>
           <button class="nav-link" data-view="vouch" type="button">
             <i data-lucide="heart-handshake"></i> Give a vouch
@@ -69,6 +69,7 @@
             <i data-lucide="shield-check"></i> Account verification
           </button>
         </nav>
+        <a class="button subtle workspace-switch" href="/employer">Switch to employer workspace ↗</a>
         <div class="sidebar-bottom">
           <div class="sidebar-note">
             <span class="note-icon"><i data-lucide="sparkles"></i></span>
@@ -141,7 +142,7 @@
                 </button>
                 <button class="journey-step" type="button" data-view="lens">
                   <span class="journey-number">03</span>
-                  <span><strong>See the connection</strong><small>Explore the employer lens</small></span>
+                  <span><strong>See the connection</strong><small>Explore your student skills lens</small></span>
                   <i data-lucide="arrow-up-right"></i>
                 </button>
               </div>
@@ -245,10 +246,10 @@
                   ></span>
                   <div>
                     <span class="overline">A DIFFERENT KIND OF MATCH</span>
-                    <h3>See it through an employer's eyes.</h3>
-                    <p>Turn a job description into a clear evidence map.</p>
+                    <h3>Explore your skills pathway.</h3>
+                    <p>Compare a job description with your demo evidence.</p>
                     <button class="text-link" type="button" data-view="lens">
-                      Try the employer lens <i data-lucide="arrow-right"></i>
+                      Try the student lens <i data-lucide="arrow-right"></i>
                     </button>
                   </div>
                 </section>
@@ -417,7 +418,7 @@
             <div class="page-heading">
               <div>
                 <div class="overline">
-                  <span class="overline-dot"></span> THE EMPLOYER LENS
+                  <span class="overline-dot"></span> THE STUDENT SKILLS LENS
                 </div>
                 <h1 id="lens-title">
                   See the proof behind<br />the potential<span class="wave"
@@ -440,6 +441,9 @@
                   ><i data-lucide="file-text"></i>
                 </div>
                 <h2>What are you looking for?</h2>
+                <label for="student-lens-person">FICTIONAL STUDENT</label>
+                <select id="student-lens-person" aria-describedby="student-lens-person-note"><option value="">No signed demo credentials</option></select>
+                <p id="student-lens-person-note" class="share-hint">Only the selected student's signed demo evidence is used. Names are not identity verification.</p>
                 <p>
                   Paste your full job posting, pick a live Calgary posting, or
                   use the example.
@@ -464,57 +468,27 @@
                     Use example
                   </button>
                 </div>
+                <button type="button" class="button subtle" id="student-ai-analyze">Get AI-assisted ideas</button>
+                <p class="share-hint">Optional: sends this posting and your signed demo evidence to the configured AI provider. Do not enter sensitive information. If AI is unavailable, the keyword pathway is still available.</p>
                 <div class="lens-disclaimer">
                   <i data-lucide="info"></i>
                   <span id="lens-disclaimer-text"
-                    >AI extracts requirements and proposes matches; every quote
-                    is checked word-for-word against a signed credential before
-                    it's shown. Gaps are never filled by AI. Not a hiring
-                    recommendation.</span
-                  >
+                    >Student view uses keyword hints and this browser's signed demo evidence, not an assessment of your ability or a hiring recommendation. Project ideas are fictional. Review the full posting, including qualifications we may miss.</span>
                 </div>
               </div>
               <div class="lens-output">
                 <div class="card-label">
                   <span>02 / THE EVIDENCE</span>
-                  <div
-                    class="audience-toggle"
-                    role="group"
-                    aria-label="Show results for"
-                  >
-                    <button
-                      type="button"
-                      data-audience="employer"
-                      aria-pressed="true"
-                    >
-                      Employer view</button
-                    ><button
-                      type="button"
-                      data-audience="student"
-                      aria-pressed="false"
-                    >
-                      Student view
-                    </button>
-                  </div>
+                  <span>STUDENT VIEW</span>
                 </div>
                 <div id="lens-results" class="lens-empty">
                   <span><i data-lucide="scan-search"></i></span>
                   <h2>Let's connect the dots.</h2>
                   <p>Your evidence map will appear here.</p>
                 </div>
+                <div id="student-ai-results" role="status" aria-live="polite"></div>
               </div>
             </div>
-            <section class="badge-lookup" aria-labelledby="badge-lookup-title">
-              <div class="card-label"><span>03 / PUBLIC BADGE RECORD</span><i data-lucide="badge-check"></i></div>
-              <h2 id="badge-lookup-title">Look up a Badgr badge</h2>
-              <p>Check the status of a publicly shared hosted assertion on Badgr / Parchment Digital Badges.</p>
-              <form id="badge-lookup-form" method="post" action="/api/badgr/assertion">
-                <div class="badge-fields"><div><label for="badge-region">Provider region</label><select id="badge-region" name="region"><option value="canada">Canada</option><option value="us">United States</option><option value="legacy">Legacy Badgr.io</option></select></div><div><label for="badge-id">Assertion ID</label><input id="badge-id" name="assertionId" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9_-]{1,128}" maxlength="128" required placeholder="e.g. abc123"></div></div>
-                <button class="button primary" type="submit">Look up badge <i data-lucide="arrow-right"></i></button>
-              </form>
-              <p class="badge-warning">This checks the provider's public record, expiry and revocation only. It does not verify recipient ownership, issuer trust, signatures, or complete Open Badges compliance. Do not use it as a hiring decision.</p>
-              <div id="badge-lookup-result" class="badge-result" role="status" aria-live="polite" hidden></div>
-            </section>
           </section>
           <section class="view" id="vouch" hidden aria-labelledby="vouch-title">
             <div class="page-heading">
@@ -793,6 +767,9 @@
         <p id="approval-quote"></p>
         <p id="approval-skills"></p>
       </div>
+      <label for="approval-student">Fictional student name</label>
+      <input id="approval-student" type="text" maxlength="100" required value="Priya Sharma" />
+      <p class="share-hint">Use a fictional name. This is not an identity verification.</p>
       <div class="verify-actions">
         <button class="button subtle" type="button" id="back-to-vouch">
           Back to edit</button

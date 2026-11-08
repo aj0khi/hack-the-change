@@ -35,6 +35,12 @@ test('server issues, shares, verifies and retains demo credentials across restar
     assert.equal(issue.status, 201);
     const { token } = await issue.json();
     assert.equal((await verifyCredential(token, issuer.publicKey)).valid, true);
+    const namedResponse = await post('/api/demo-credentials/issue', { ...demo, student: 'Alex Example' });
+    assert.equal(namedResponse.status, 201);
+    const named = await verifyCredential((await namedResponse.json()).token, issuer.publicKey);
+    assert.equal(named.payload.student, 'Alex Example');
+    assert.equal((await post('/api/demo-credentials/issue', { ...demo, student: '   ' })).status, 400);
+    assert.equal((await post('/api/demo-credentials/issue', { ...demo, student: 'x'.repeat(101) })).status, 400);
     assert.equal((await post('/api/demo-credentials/issue', { ...demo, mappings: [{ skill: 'Digital', quote: 'fabricated' }] })).status, 400);
     assert.equal((await post('/api/demo-credentials/share', { token: alterCredential(token) })).status, 400);
     const shared = await (await post('/api/demo-credentials/share', { token })).json();

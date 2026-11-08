@@ -1,0 +1,129 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createApp } from '../server-app.mjs';
+import { createDemoCredentialStore } from '../verification/demo-credentials.mjs';
+import { createVerificationStore } from '../verification/verification-store.mjs';
+
+const origin = 'https://proofly.example';
+const transcript = 'She explained the steps clearly.';
+
+async function setup(generate) {
+  const credentials = await createDemoCredentialStore(':memory:');
+  const accounts = createVerificationStore(':memory:');
+  const token = await credentials.issue({ title: 'Help neighbours', witness: 'Doug', transcript, mappings: [{ skill: 'Communication', quote: transcript }] });
+  const id = await credentials.publish(token);
+  const second = await credentials.issue({ title: 'Another project', witness: 'Jane', transcript, mappings: [{ skill: 'Communication', quote: transcript }] });
+  const secondId = await credentials.publish(second);
+  const app = createApp({ config: { appOrigin: origin }, store: accounts, demoCredentials: credentials, lens: { generate, model: 'test-model' } });
+  const server = await new Promise(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const link = `${origin}/verify/${id}`;
+  const post = body => fetch(`${base}/api/employer/lens`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  return { link, secondLink: `${origin}/verify/${secondId}`, post, base, credentials, close: async () => { await new Promise(resolve => server.close(resolve)); credentials.close(); accounts.close(); } };
+}
+
+test('employer lens resolves multiple published links without local student credentials', async () => {
+  const t = await setup();
+  try {
+    const response = await t.post({ posting: 'Communication skills are required.', links: [t.link, t.secondLink] });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.mode, 'offline');
+    assert.equal(data.sources.length, 2);
+    assert.deepEqual(data.sources.map(source => source.witness), ['Doug', 'Jane']);
+    assert.deepEqual(data.requirements[0].matches.map(match => match.credentialId), ['0', '1']);
+    assert.equal(data.requirements[0].matches[0].quote, transcript);
+    assert.equal(JSON.stringify(data).includes('eyJ'), false);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.equal((await fetch(`${t.base}/employer`)).status, 200);
+  } finally { await t.close(); }
+});
+
+test('employer AI uses verified published evidence and grounds proposed quotes', async () => {
+  let prompt;
+  const t = await setup(async input => {
+    prompt = input.prompt;
+    return { requirements: [{ text: 'Communication', kind: 'soft', matches: [
+      { credentialId: '0', quote: transcript, evidenceType: 'action', why: 'Explained steps.' },
+      { credentialId: '0', quote: 'fabricated', evidenceType: 'action', why: 'Made up.' },
+    ] }] };
+  });
+  try {
+    const response = await t.post({ posting: 'Communication skills', links: [t.link] });
+    const data = await response.json();
+    assert.equal(data.mode, 'ai');
+    assert.match(prompt, /She explained the steps clearly/);
+    assert.equal(data.requirements[0].matches.length, 1);
+    assert.equal(data.stats.droppedByGrounding, 1);
+  } finally { await t.close(); }
+});
+
+test('employer lens rejects invalid, foreign, missing, duplicate and excessive links before AI', async () => {
+  let calls = 0;
+  const t = await setup(async () => { calls++; return { requirements: [] }; });
+  try {
+    for (const links of [[], ['not-a-url'], [42], ['x'.repeat(2049)], [t.link.replace(origin, 'https://evil.example')], [`${t.link}?x=1`], [`${t.link}/qr.png`], [t.link, t.link], Array(11).fill(t.link)]) {
+      assert.equal((await t.post({ posting: 'Communication', links })).status, 400);
+    }
+    assert.equal((await t.post({ posting: 'Communication', links: [`${origin}/verify/${'a'.repeat(32)}`] })).status, 404);
+    assert.equal((await t.post({ posting: '', links: [t.link] })).status, 400);
+    assert.equal((await t.post({ posting: 'x'.repeat(12001), links: [t.link] })).status, 400);
+    assert.equal(calls, 0);
+    const original = t.credentials.getPublished;
+    t.credentials.getPublished = async () => ({ valid: false });
+    assert.equal((await t.post({ posting: 'Communication', links: [t.link] })).status, 422);
+    t.credentials.getPublished = original;
+  } finally { await t.close(); }
+});
+
+test('employer lens refuses to combine evidence with different named students', async () => {
+  let calls = 0;
+  const t = await setup(async () => { calls++; return { requirements: [] }; });
+  try {
+    const original = t.credentials.getPublished;
+    t.credentials.getPublished = async id => {
+      const credential = await original(id);
+      return id === t.secondLink.split('/').pop()
+        ? { ...credential, payload: { ...credential.payload, student: 'Another student' } }
+        : credential;
+    };
+    const response = await t.post({ posting: 'Communication', links: [t.link, t.secondLink] });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /one student at a time/i);
+    assert.equal(calls, 0);
+  } finally { await t.close(); }
+});
+
+test('separately shared fictional students can each be analyzed for the same posting', async () => {
+  const t = await setup();
+  try {
+    const token = await t.credentials.issue({ student: 'Alex Example', title: 'Help neighbours', witness: 'Alex', transcript, mappings: [{ skill: 'Communication', quote: transcript }] });
+    const id = await t.credentials.publish(token);
+    const first = await (await t.post({ posting: 'Communication skills', links: [t.link] })).json();
+    const second = await (await t.post({ posting: 'Communication skills', links: [`${origin}/verify/${id}`] })).json();
+    assert.equal(first.sources[0].student, 'Priya Sharma');
+    assert.equal(second.sources[0].student, 'Alex Example');
+    assert.equal(first.requirements[0].matches.length, 1);
+    assert.equal(second.requirements[0].matches.length, 1);
+    assert.equal((await t.post({ posting: 'Communication skills', links: [t.link, `${origin}/verify/${id}`] })).status, 400);
+  } finally { await t.close(); }
+});
+
+test('student and employer pages contain their own tools', async () => {
+  const t = await setup();
+  try {
+    const student = await (await fetch(`${t.base}/`)).text();
+    const employer = await (await fetch(`${t.base}/employer`)).text();
+    assert.match(student, /id="credentials-list"/);
+    assert.match(student, /href="\/employer"/);
+    assert.match(student, /id="student-ai-analyze"/);
+    assert.doesNotMatch(student, /id="badge-lookup-form"|id="employer-form"/);
+    assert.match(employer, /id="employer-form"/);
+    assert.match(employer, /id="employer-job-select"/);
+    assert.match(employer, /id="employer-job-file"/);
+    assert.match(employer, /accept="\.txt,\.md,text\/plain,text\/markdown"/);
+    assert.match(employer, /Leave a blank line between students/);
+    assert.match(employer, /id="badge-lookup-form"/);
+    assert.doesNotMatch(employer, /id="credentials-list"|id="vouch-form"|id="job-description"/);
+  } finally { await t.close(); }
+});
