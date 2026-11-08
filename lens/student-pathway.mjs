@@ -2,13 +2,13 @@ import { projects } from "./projects.mjs";
 import { skillTerms } from "./skills.mjs";
 
 const specificSkills = [
-  { name: "SQL", pattern: /\bsql\b/i, projectIds: ["community-sql-report"] },
-  { name: "Excel", pattern: /\bexcel\b/i, projectIds: ["food-pantry-budget", "signup-sheet"] },
-  { name: "Spreadsheets", pattern: /\bspreadsheet\w*\b|\bgoogle sheets\b/i, projectIds: ["signup-sheet", "food-pantry-budget"] },
-  { name: "Databases", pattern: /\bdatabase\w*\b/i, projectIds: ["volunteer-database"] },
-  { name: "Customer service", pattern: /\bcustomer service\b/i, projectIds: ["welcome-desk", "tech-help-hour"] },
-  { name: "Python", pattern: /\bpython\b/i, projectIds: [] },
-  { name: "JavaScript", pattern: /\bjavascript\b/i, projectIds: [] },
+  { name: "SQL", pattern: /\bsql\b/i, projectIds: ["community-sql-report", "sql-food-pantry"] },
+  { name: "Excel", pattern: /\bexcel\b/i, projectIds: ["food-pantry-budget", "signup-sheet", "spreadsheet-rota"] },
+  { name: "Spreadsheets", pattern: /\bspreadsheet\w*\b|\bgoogle sheets\b/i, projectIds: ["signup-sheet", "food-pantry-budget", "spreadsheet-rota"] },
+  { name: "Databases", pattern: /\bdatabase\w*\b/i, projectIds: ["volunteer-database", "database-resource-list", "community-sql-report"] },
+  { name: "Customer service", pattern: /\bcustomer service\b/i, projectIds: ["welcome-desk", "tech-help-hour", "service-faq"] },
+  { name: "Python", pattern: /\bpython\b/i, projectIds: ["python-donations", "python-event-counts"] },
+  { name: "JavaScript", pattern: /\bjavascript\b/i, projectIds: ["javascript-event-page", "javascript-resource-finder"] },
 ];
 
 function postingContext(posting, pattern) {
@@ -44,6 +44,6 @@ export function buildStudentPathway(posting, validCredentials, catalog = project
       name,
       context: postingContext(posting, pattern),
       evidence: evidence.filter(matches).slice(0, 3),
-      projects: suggestions().slice(0, 2),
+      projects: suggestions(),
     }));
 }

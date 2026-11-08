@@ -19,7 +19,7 @@ test("fictional project catalog covers every Skills for Success category", () =>
 
 test("SQL gaps point to a project that explicitly practises SQL", () => {
   const suggestions = keywordProjectSuggestions("Basic SQL or database experience");
-  assert.deepEqual(suggestions.map((project) => project.id), ["community-sql-report"]);
+  assert.deepEqual(suggestions.map((project) => project.id), ["community-sql-report", "sql-food-pantry"]);
   assert.match(suggestions[0].description, /\bSQL\b/);
   assert.equal(keywordProjectSuggestions("Excellent communication"), null);
 });
