@@ -46,6 +46,17 @@ test('server issues, shares, verifies and retains demo credentials across restar
     assert.match(html, /Doug/);
     assert.match(html, /Priya explained each step/);
     assert.match(html, /fictional demo/i);
+    assert.match(html, /<meta property="og:title" content="Proofly \| Fictional demo credential">/);
+    assert.match(html, new RegExp(`<meta property="og:url" content="${shared.url}">`));
+    assert.match(html, /<meta property="og:image" content="https:\/\/proofly\.example\/proofly-share-preview\.png">/);
+    assert.equal(page.headers.get('x-robots-tag'), 'noindex, nofollow');
+    const preview = await fetch(base + '/proofly-share-preview.png');
+    assert.equal(preview.status, 200);
+    assert.match(preview.headers.get('content-type'), /image\/png/);
+    const bytes = Buffer.from(await preview.arrayBuffer());
+    assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+    assert.equal(bytes.readUInt32BE(16), 1200);
+    assert.equal(bytes.readUInt32BE(20), 630);
     assert.match(html, /&lt;script&gt;/);
     assert.doesNotMatch(html, /<script>alert/);
     const qr = await fetch(base + shared.qrUrl);
@@ -70,6 +81,7 @@ test('server issues, shares, verifies and retains demo credentials across restar
     const invalid = await fetch(`http://127.0.0.1:${server.address().port}/verify/${id}`);
     assert.equal(invalid.status, 422);
     assert.match(await invalid.text(), /Signature invalid/);
+    assert.doesNotMatch(await (await fetch(`http://127.0.0.1:${server.address().port}/verify/${id}`)).text(), /property="og:title"/);
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));
     credentials?.close();
