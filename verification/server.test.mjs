@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from './server.mjs';
+import { createApp } from '../server-app.mjs';
 import { createVerificationStore } from './verification-store.mjs';
 
 test('verification fails closed and never promotes test identities or self-submitted organizations', async () => {
@@ -26,6 +26,9 @@ test('verification fails closed and never promotes test identities or self-submi
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = (path, token, body) => fetch(`${base}${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   try {
+    const health = await fetch(`${base}/healthz`);
+    assert.equal(health.status, 200);
+    assert.deepEqual(await health.json(), { status: 'ok' });
     assert.equal((await request('/api/account')).status, 401);
     assert.equal((await request('/api/account', 'unverified')).status, 403);
     assert.equal(store.account('unverified').email_verified, 0);

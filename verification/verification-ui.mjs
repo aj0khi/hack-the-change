@@ -11,7 +11,7 @@ let client;
 let config;
 
 async function request(path, options = {}) {
-  const token = await client.getTokenSilently({ authorizationParams: { audience: config.auth0Audience } });
+  const token = await client.getTokenSilently({ authorizationParams: { audience: config.auth0Audience, scope: 'access:verification' } });
   const response = await fetch(path, { ...options, headers: { authorization: `Bearer ${token}`, ...(options.body ? { 'content-type': 'application/json' } : {}) }, cache: 'no-store' });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Unable to complete the request.');
@@ -56,7 +56,7 @@ async function initialize() {
     client = await window.auth0.createAuth0Client({
       domain: config.auth0Domain,
       clientId: config.auth0ClientId,
-      authorizationParams: { audience: config.auth0Audience, redirect_uri: `${location.origin}/`, scope: 'openid profile email' },
+      authorizationParams: { audience: config.auth0Audience, redirect_uri: `${location.origin}/`, scope: 'openid profile email access:verification' },
       cacheLocation: 'memory',
     });
     const parameters = new URLSearchParams(location.search);

@@ -3,6 +3,8 @@ node_modules/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+data/adzuna-cache.json
+data/lens-cache.json
 .DS_Store
 xcuserdata/
 DerivedData/
