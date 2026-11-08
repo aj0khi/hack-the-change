@@ -45,7 +45,7 @@
   margin-top: 12px;
 }
 .kind-tag {
-  font: 600 11px var(--font);
+  font: 600 12px var(--font);
   color: #4f5c56;
   background: #f1f2ef;
   border-radius: 3px;
@@ -71,7 +71,7 @@
   color: #5b6862;
 }
 .evidence-tag {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.5px;
   border-radius: 3px;
@@ -326,7 +326,7 @@
 }
 #lens .kind-tag,
 #lens .evidence-tag {
-  font-size: 11px;
+  font-size: 12px;
 }
 #lens .lens-evidence .result-desc,
 #lens .rejected-item .result-desc {

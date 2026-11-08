@@ -57,6 +57,7 @@ const viewNames = {
   credentials: "My credentials",
   lens: "Employer lens",
   vouch: "Give a vouch",
+  kiosk: "Easy vouch",
   verification: "Account verification",
 };
 const escapeHTML = (value) =>
@@ -77,6 +78,7 @@ let issuer;
 let credentials = [];
 let selectedCredential;
 let pendingVouch;
+let approvalSource = "form"; // "form" or "kiosk": where to go after issuing
 let shareToken;
 
 async function demoRequest(path, body) {
@@ -197,6 +199,9 @@ function showView(name) {
     viewNames[name].toUpperCase();
   document.title = `${viewNames[name]} | Proofly`;
   if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
+  document.body.classList.toggle("kiosk-mode", name === "kiosk");
+  if (name === "kiosk") renderKiosk();
+  else stopDictation();
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -701,17 +706,23 @@ document
       issuedAt: new Date().toISOString().slice(0, 10),
       mappings: skills.map((skill) => ({ skill, quote: transcript })),
     };
-    pendingVouch = payload;
-    document.querySelector("#approval-task").textContent = payload.title;
-    document.querySelector("#approval-witness").textContent =
-      `Confirmed by: ${payload.witness}`;
-    document.querySelector("#approval-quote").textContent =
-      `“${payload.transcript}”`;
-    document.querySelector("#approval-skills").textContent =
-      `Selected skills: ${skills.join(", ")}`;
-    document.querySelector("#approval-error").textContent = "";
-    document.querySelector("#approval-dialog").showModal();
+    openApproval(payload, "form");
   });
+
+// Coordinator review dialog, shared by the standard form and easy (kiosk) mode.
+function openApproval(payload, source) {
+  pendingVouch = payload;
+  approvalSource = source;
+  document.querySelector("#approval-task").textContent = payload.title;
+  document.querySelector("#approval-witness").textContent =
+    `Confirmed by: ${payload.witness}`;
+  document.querySelector("#approval-quote").textContent =
+    `“${payload.transcript}”`;
+  document.querySelector("#approval-skills").textContent =
+    `Selected skills: ${payload.mappings.map((m) => m.skill).join(", ")}`;
+  document.querySelector("#approval-error").textContent = "";
+  document.querySelector("#approval-dialog").showModal();
+}
 
 document
   .querySelector("#cancel-approval")
@@ -730,6 +741,7 @@ document
   .querySelector("#approve-vouch")
   .addEventListener("click", async (event) => {
     if (!pendingVouch) return;
+    const fromKiosk = approvalSource === "kiosk";
     const button = event.currentTarget;
     button.disabled = true;
     try {
@@ -738,10 +750,15 @@ document
       await writeState("credentials", updated);
       credentials = updated;
       document.querySelector("#approval-dialog").close();
-      document.querySelector("#vouch-form").reset();
       await renderCredentials();
       renderLens();
-      showView("credentials");
+      if (fromKiosk) {
+        kiosk.step = kioskSteps.indexOf("done");
+        renderKiosk();
+      } else {
+        document.querySelector("#vouch-form").reset();
+        showView("credentials");
+      }
       announce("Your demo credential was signed and saved on this device.");
     } catch (failure) {
       document.querySelector("#approval-error").textContent =
@@ -751,42 +768,325 @@ document
     }
   });
 
+// ---- Speech-to-text, shared by the standard form and easy (kiosk) mode ----
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
-document.querySelector("#voice-button").addEventListener("click", () => {
-  const status = document.querySelector("#voice-status");
+let activeRecognition;
+
+// Appends what the person says to `field`. Calls onState("listening" | "stopped" | "error", message).
+function startDictation(field, onState, { continuous = false } = {}) {
+  stopDictation();
   if (!SpeechRecognition) {
-    status.textContent =
-      "Speech recognition is not available in this browser. Please type your words instead.";
+    onState(
+      "error",
+      "Voice input is not available in this browser. Please type your words instead.",
+    );
     return;
   }
   const recognition = new SpeechRecognition();
   recognition.lang = "en-CA";
   recognition.interimResults = false;
-  recognition.onstart = () => {
-    status.textContent =
-      "Listening. Speak now; your browser may send audio to its speech provider.";
-  };
+  recognition.continuous = continuous;
+  recognition.onstart = () =>
+    onState(
+      "listening",
+      "Listening. Speak now; your browser may send audio to its speech provider.",
+    );
   recognition.onresult = (event) => {
-    const field = document.querySelector("#vouch-transcript");
-    field.value =
-      `${field.value}${field.value ? " " : ""}${event.results[0][0].transcript}`.slice(
-        0,
-        2000,
-      );
-    status.textContent =
-      "Please review and correct your words before confirming.";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (!event.results[i].isFinal) continue;
+      const words = event.results[i][0].transcript.trim();
+      field.value = `${field.value}${field.value ? " " : ""}${words}`.slice(0, 2000);
+    }
+    field.dispatchEvent(new Event("input", { bubbles: true }));
   };
-  recognition.onerror = () => {
-    status.textContent =
-      "Voice input did not work. Please try again or type your words.";
+  recognition.onerror = () =>
+    onState("error", "Voice input did not work. Please try again or type your words.");
+  recognition.onend = () => {
+    if (activeRecognition === recognition) activeRecognition = undefined;
+    onState("stopped", "Please check your words. You can fix anything by typing.");
   };
   try {
     recognition.start();
+    activeRecognition = recognition;
   } catch {
-    status.textContent =
-      "Voice input could not start. Please type your words instead.";
+    onState("error", "Voice input could not start. Please type your words instead.");
   }
+}
+function stopDictation() {
+  activeRecognition?.stop();
+  activeRecognition = undefined;
+}
+
+document.querySelector("#voice-button").addEventListener("click", () => {
+  const status = document.querySelector("#voice-status");
+  startDictation(document.querySelector("#vouch-transcript"), (state, message) => {
+    if (state === "stopped") message = "Please review and correct your words before confirming.";
+    status.textContent = message;
+  });
+});
+
+// ---- Easy (kiosk) mode: one large question per screen. No AI involved. ----
+// The three answers are joined into the transcript that gets signed, and each skill's quote is one
+// whole answer, so every mapping quote appears word-for-word in the transcript (the trust contract).
+const kioskQuestions = [
+  {
+    id: "what",
+    prompt: "What did they help you with?",
+    hint: "For example: “She showed me how to video call my grandson.”",
+    optional: false,
+  },
+  {
+    id: "stuck",
+    prompt: "What did they do when something didn't work?",
+    hint: "For example: “When the app froze, he stayed calm and tried another way.”",
+    optional: true,
+  },
+  {
+    id: "now",
+    prompt: "What can you do now that you couldn't before?",
+    hint: "For example: “Now I call my family every Sunday by myself.”",
+    optional: true,
+  },
+];
+const kioskSkillLabels = {
+  Communication: "Explained things clearly",
+  Digital: "Used a phone, tablet or computer well",
+  "Problem solving": "Figured out what was wrong",
+  Collaboration: "Worked well with me or with others",
+  Adaptability: "Tried another way when something didn't work",
+  Writing: "Wrote things down for me",
+  Reading: "Read and explained instructions",
+  Numeracy: "Worked with numbers, money or a budget",
+  "Creativity and innovation": "Came up with a new idea",
+};
+// When no keyword matches, which answer is the most natural evidence for a skill.
+const kioskSkillAnswer = {
+  Digital: "what",
+  Communication: "what",
+  Writing: "what",
+  Reading: "what",
+  Numeracy: "what",
+  "Problem solving": "stuck",
+  Adaptability: "stuck",
+  Collaboration: "stuck",
+  "Creativity and innovation": "stuck",
+};
+const kioskSteps = ["project", "name", ...kioskQuestions.map((q) => q.id), "review", "skills", "done"];
+let kiosk;
+function resetKiosk() {
+  kiosk = { step: 0, project: "", name: "", answers: {}, skills: new Set(), editing: false };
+}
+resetKiosk();
+
+// Tidy an answer once, before the read-back, so the person confirms exactly the words that get signed.
+const tidyAnswer = (text) => {
+  const clean = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  const sentence = clean[0].toUpperCase() + clean.slice(1);
+  return /[.!?]["”']?$/.test(sentence) ? sentence : `${sentence}.`;
+};
+const kioskAnswerList = () =>
+  kioskQuestions.map((q) => ({ ...q, answer: kiosk.answers[q.id] ?? "" })).filter((q) => q.answer);
+const kioskTranscript = () => kioskAnswerList().map((q) => q.answer).join(" ");
+
+function kioskQuote(skill) {
+  const answers = kioskAnswerList();
+  const matched = answers.find((q) => skillTerms[skill]?.test(q.answer));
+  const preferred = answers.find((q) => q.id === kioskSkillAnswer[skill]);
+  return (matched ?? preferred ?? answers[0]).answer;
+}
+
+const kioskBack = () =>
+  kiosk.step > 0
+    ? `<button class="kiosk-button secondary" type="button" data-kiosk="back">${icon("arrow-left")} Back</button>`
+    : "";
+
+function kioskScreen() {
+  const id = kioskSteps[kiosk.step];
+  const projectOptions = [...document.querySelectorAll("#vouch-task option")]
+    .map((option) => option.value)
+    .filter(Boolean);
+  if (id === "project")
+    return `<h1 id="kiosk-title" tabindex="-1">Which activity was this?</h1>
+      <p class="kiosk-hint">Tap one.</p>
+      <div class="kiosk-choices">${projectOptions
+        .map(
+          (title) =>
+            `<button class="kiosk-choice" type="button" data-kiosk="project" data-value="${escapeHTML(title)}" aria-pressed="${kiosk.project === title}">${escapeHTML(title)}</button>`,
+        )
+        .join("")}</div>`;
+  if (id === "name")
+    return `<h1 id="kiosk-title" tabindex="-1">What is your first name?</h1>
+      <label class="sr-only" for="kiosk-input">Your first name</label>
+      <input class="kiosk-input" id="kiosk-input" type="text" maxlength="40" autocomplete="given-name" value="${escapeHTML(kiosk.name)}" />
+      <div class="kiosk-actions">${kioskBack()}<button class="kiosk-button primary" type="button" data-kiosk="next">Next ${icon("arrow-right")}</button></div>`;
+  const question = kioskQuestions.find((q) => q.id === id);
+  if (question)
+    return `<h1 id="kiosk-title" tabindex="-1">${escapeHTML(question.prompt)}</h1>
+      <p class="kiosk-hint">${escapeHTML(question.hint)}</p>
+      <button class="kiosk-mic" type="button" data-kiosk="mic" aria-pressed="false">
+        ${icon("mic")}<span>Tap and speak</span>
+      </button>
+      <label class="kiosk-or" for="kiosk-input">Or type your answer</label>
+      <textarea class="kiosk-input" id="kiosk-input" rows="4" maxlength="600">${escapeHTML(kiosk.answers[id] ?? "")}</textarea>
+      <div class="kiosk-actions">${kioskBack()}${
+        question.optional
+          ? `<button class="kiosk-button secondary" type="button" data-kiosk="skip">Skip this question</button>`
+          : ""
+      }<button class="kiosk-button primary" type="button" data-kiosk="next">Next ${icon("arrow-right")}</button></div>`;
+  if (id === "review")
+    return `<h1 id="kiosk-title" tabindex="-1">Is this right?</h1>
+      <p class="kiosk-hint">This is exactly what will be saved, in your words.</p>
+      <div class="kiosk-readback">${kioskAnswerList()
+        .map(
+          (q) => `<div class="kiosk-readback-item">
+            <p class="kiosk-readback-question">${escapeHTML(q.prompt)}</p>
+            <blockquote>${escapeHTML(q.answer)}</blockquote>
+            <button class="kiosk-link" type="button" data-kiosk="edit" data-value="${q.id}">Change this answer</button>
+          </div>`,
+        )
+        .join("")}</div>
+      ${"speechSynthesis" in window ? `<button class="kiosk-button secondary wide" type="button" data-kiosk="speak">${icon("volume-2")} Read it out loud to me</button>` : ""}
+      <p class="kiosk-consent">Tapping “Yes” means these are your words and you agree to include them in this demo credential.</p>
+      <div class="kiosk-actions">${kioskBack()}<button class="kiosk-button primary" type="button" data-kiosk="confirm">${icon("check")} Yes, that's right</button></div>`;
+  if (id === "skills") {
+    const transcript = kioskTranscript();
+    return `<h1 id="kiosk-title" tabindex="-1">What did you see them do?</h1>
+      <p class="kiosk-hint">Tap any that are true. Each one will be linked to your own words.</p>
+      <div class="kiosk-choices skills">${Object.keys(kioskSkillLabels)
+        .map((skill) => {
+          const mentioned = skillTerms[skill]?.test(transcript);
+          return `<button class="kiosk-choice" type="button" data-kiosk="skill" data-value="${escapeHTML(skill)}" aria-pressed="${kiosk.skills.has(skill)}">
+            <span class="kiosk-choice-title">${escapeHTML(kioskSkillLabels[skill])}</span>
+            <span class="kiosk-choice-meta">${escapeHTML(skill)}${mentioned ? " · in your words" : ""}</span>
+          </button>`;
+        })
+        .join("")}</div>
+      <div class="kiosk-actions">${kioskBack()}<button class="kiosk-button primary" type="button" data-kiosk="send">Send to the coordinator ${icon("arrow-right")}</button></div>`;
+  }
+  return `<h1 id="kiosk-title" tabindex="-1">Thank you, ${escapeHTML(kiosk.name)}.</h1>
+    <p class="kiosk-hint">Your words are now a signed demo credential. You helped someone show what they can do.</p>
+    <div class="kiosk-actions"><button class="kiosk-button primary" type="button" data-kiosk="restart">Start a new vouch</button></div>`;
+}
+
+function renderKiosk({ focus = true } = {}) {
+  const container = document.querySelector("#kiosk-step");
+  if (!container) return;
+  const total = kioskSteps.length - 1; // "done" is not a step the person does
+  const id = kioskSteps[kiosk.step];
+  document.querySelector("#kiosk-progress").textContent =
+    id === "done" ? "" : `Step ${kiosk.step + 1} of ${total}`;
+  document.querySelector("#kiosk-status").textContent = "";
+  container.innerHTML = kioskScreen();
+  refreshIcons();
+  if (focus) document.querySelector("#kiosk-title")?.focus();
+}
+
+function kioskSay(message) {
+  document.querySelector("#kiosk-status").textContent = message;
+}
+
+// Save whatever is in the current input; returns false if a required answer is missing.
+function kioskSaveStep() {
+  const id = kioskSteps[kiosk.step];
+  const input = document.querySelector("#kiosk-input");
+  if (id === "name") {
+    kiosk.name = input.value.trim();
+    if (!kiosk.name) return kioskSay("Please type your first name."), false;
+  }
+  const question = kioskQuestions.find((q) => q.id === id);
+  if (question) {
+    kiosk.answers[id] = tidyAnswer(input.value);
+    if (!kiosk.answers[id] && !question.optional)
+      return kioskSay("Please say or type a few words."), false;
+  }
+  return true;
+}
+
+function kioskGo(step) {
+  stopDictation();
+  window.speechSynthesis?.cancel();
+  kiosk.step = Math.max(0, Math.min(step, kioskSteps.length - 1));
+  renderKiosk();
+}
+
+document.querySelector("#kiosk").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-kiosk]");
+  if (!button) return;
+  const action = button.dataset.kiosk;
+  const value = button.dataset.value;
+  if (action === "back") {
+    if (kioskSteps[kiosk.step] !== "review" && document.querySelector("#kiosk-input")) kioskSaveStep();
+    kioskGo(kiosk.step - 1);
+  } else if (action === "project") {
+    kiosk.project = value;
+    kioskGo(kiosk.step + 1);
+  } else if (action === "next") {
+    if (!kioskSaveStep()) return;
+    // After "Change this answer", go straight back to the read-back.
+    if (kiosk.editing && kioskAnswerList().length) return (kiosk.editing = false), kioskGo(kioskSteps.indexOf("review"));
+    kioskGo(kiosk.step + 1);
+  } else if (action === "skip") {
+    kiosk.answers[kioskSteps[kiosk.step]] = "";
+    kioskGo(kiosk.step + 1);
+  } else if (action === "mic") {
+    if (activeRecognition) return stopDictation();
+    startDictation(
+      document.querySelector("#kiosk-input"),
+      (state, message) => {
+        const listening = state === "listening";
+        button.setAttribute("aria-pressed", String(listening));
+        button.querySelector("span").textContent = listening ? "Listening… tap to stop" : "Tap and speak";
+        kioskSay(message);
+      },
+      { continuous: true },
+    );
+  } else if (action === "edit") {
+    kiosk.editing = true;
+    kioskGo(kioskSteps.indexOf(value));
+  } else if (action === "speak") {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(kioskTranscript());
+    utterance.lang = "en-CA";
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+  } else if (action === "confirm") {
+    kioskGo(kioskSteps.indexOf("skills"));
+  } else if (action === "skill") {
+    if (kiosk.skills.has(value)) kiosk.skills.delete(value);
+    else kiosk.skills.add(value);
+    button.setAttribute("aria-pressed", String(kiosk.skills.has(value)));
+  } else if (action === "send") {
+    if (!kiosk.skills.size) return kioskSay("Please tap at least one thing you saw them do.");
+    if (!issuer || !database) return kioskSay("Signing is unavailable in this browser.");
+    const transcript = kioskTranscript();
+    const payload = {
+      title: kiosk.project,
+      witness: kiosk.name,
+      transcript,
+      issuer: "Community Centre (fictional demo)",
+      student: "Priya Sharma",
+      example: false,
+      issuedAt: new Date().toISOString().slice(0, 10),
+      mappings: [...kiosk.skills].map((skill) => ({ skill, quote: kioskQuote(skill) })),
+    };
+    // Same grounding rule the verifier enforces: every quote is verbatim in the transcript.
+    if (!payload.mappings.every((m) => transcript.includes(m.quote)))
+      return kioskSay("Something went wrong linking your words. Please go back and try again.");
+    openApproval(payload, "kiosk");
+  } else if (action === "restart") {
+    resetKiosk();
+    renderKiosk();
+  }
+});
+
+// Enter moves on from the name field (Shift+Enter still makes a new line in answers).
+document.querySelector("#kiosk").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey || event.target.id !== "kiosk-input") return;
+  if (event.target.tagName === "TEXTAREA") return;
+  event.preventDefault();
+  if (kioskSaveStep()) kioskGo(kiosk.step + 1);
 });
 
 renderProjects();
