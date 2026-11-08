@@ -2,9 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createIssuer, signCredential, alterCredential } from "../trust.mjs";
 import { runLens } from "./lens.mjs";
+import { createCredentialVerifier } from "../verification/credential-verifier.mjs";
+import { loadTrustedIssuers } from "../verification/trusted-issuers.mjs";
 import { normalizeJob } from "./adzuna.mjs";
 
 const doug = {
+  credentialId: "doug-credential-0001",
+  issuerId: "test-centre",
   title: "Help neighbours connect online",
   witness: "Doug",
   issuer: "Community Centre (fictional demo)",
@@ -16,72 +20,77 @@ const doug = {
 };
 const rosa = {
   ...doug,
+  credentialId: "rosa-credential-0002",
   title: "Make a community spreadsheet easier",
   witness: "Rosa",
   transcript: "She cleaned up our sign-up spreadsheet so we stopped double-booking volunteers.",
   mappings: [{ skill: "Digital", quote: "She cleaned up our sign-up spreadsheet" }],
 };
 
+// The lens only receives results from the shared server verifier, built here with a test registry.
 async function setup() {
-  const issuer = await createIssuer();
+  const issuer = await createIssuer({ issuerId: "test-centre" });
+  const issuers = await loadTrustedIssuers([{ issuerId: "test-centre", name: "Test Centre", publicKey: issuer.publicKey }]);
+  const verify = createCredentialVerifier({ issuers, isIssued: () => true });
   const credentials = [await signCredential(doug, issuer), await signCredential(rosa, issuer)];
-  return { issuer, credentials };
+  const check = (tokens) => Promise.all(tokens.map((token) => verify(token)));
+  return { credentials, check };
 }
 
 const req = (text, kind, matches) => ({ text, kind, matches });
 const match = (credentialId, quote, evidenceType = "action") => ({ credentialId, quote, evidenceType, why: "test" });
 
 test("keeps a verbatim quote from the cited credential", async () => {
-  const { issuer, credentials } = await setup();
+  const { credentials, check } = await setup();
   const generate = async () => ({
     requirements: [req("Explain technical steps to customers", "soft", [match("0", "explained every step clearly")])],
   });
-  const { body } = await runLens({ posting: "x", credentials, issuerPublicKey: issuer.publicKey }, { generate });
+  const { body } = await runLens({ posting: "x", checks: await check(credentials) }, { generate });
   assert.equal(body.stats.matched, 1);
   assert.equal(body.requirements[0].matches[0].witness, "Doug");
   assert.equal(body.stats.droppedByGrounding, 0);
 });
 
 test("drops a fabricated quote", async () => {
-  const { issuer, credentials } = await setup();
+  const { credentials, check } = await setup();
   const generate = async () => ({
     requirements: [req("Leadership", "soft", [match("0", "Priya is a natural leader")])],
   });
-  const { body } = await runLens({ posting: "x", credentials, issuerPublicKey: issuer.publicKey }, { generate });
+  const { body } = await runLens({ posting: "x", checks: await check(credentials) }, { generate });
   assert.equal(body.stats.matched, 0);
   assert.equal(body.stats.gaps, 1);
   assert.equal(body.stats.droppedByGrounding, 1);
 });
 
 test("drops a real quote attributed to the wrong credential", async () => {
-  const { issuer, credentials } = await setup();
+  const { credentials, check } = await setup();
   const generate = async () => ({
     requirements: [req("Spreadsheets", "soft", [match("0", "She cleaned up our sign-up spreadsheet")])],
   });
-  const { body } = await runLens({ posting: "x", credentials, issuerPublicKey: issuer.publicKey }, { generate });
+  const { body } = await runLens({ posting: "x", checks: await check(credentials) }, { generate });
   assert.equal(body.stats.matched, 0);
   assert.equal(body.stats.droppedByGrounding, 1);
 });
 
 test("praise cannot satisfy a technical requirement", async () => {
-  const { issuer, credentials } = await setup();
+  const { credentials, check } = await setup();
   const generate = async () => ({
     requirements: [req("SQL", "technical", [match("0", "Priya was patient", "praise")])],
   });
-  const { body } = await runLens({ posting: "x", credentials, issuerPublicKey: issuer.publicKey }, { generate });
+  const { body } = await runLens({ posting: "x", checks: await check(credentials) }, { generate });
   assert.equal(body.stats.matched, 0);
   assert.equal(body.rejected[0].reason, "Praise cannot prove a technical skill or credential.");
 });
 
 test("a tampered credential is never sent to the model and never matched", async () => {
-  const { issuer, credentials } = await setup();
+  const { credentials, check } = await setup();
   const tampered = [alterCredential(credentials[0]), credentials[1]];
   let prompt = "";
   const generate = async (input) => {
     prompt = input.prompt;
     return { requirements: [req("Patience", "soft", [match("0", "Priya was patient")])] };
   };
-  const { body } = await runLens({ posting: "x", credentials: tampered, issuerPublicKey: issuer.publicKey }, { generate });
+  const { body } = await runLens({ posting: "x", checks: await check(tampered) }, { generate });
   assert.ok(!prompt.includes("Priya was patient"), "tampered transcript leaked into prompt");
   assert.ok(!prompt.includes("[credentialId: 0]"));
   assert.ok(prompt.includes("[credentialId: 1]"));
@@ -90,24 +99,24 @@ test("a tampered credential is never sent to the model and never matched", async
 });
 
 test("model failure or timeout returns fallback", async () => {
-  const { issuer, credentials } = await setup();
+  const { credentials, check } = await setup();
   const failing = await runLens(
-    { posting: "x", credentials, issuerPublicKey: issuer.publicKey },
+    { posting: "x", checks: await check(credentials) },
     { generate: async () => { throw new Error("quota"); } },
   );
   assert.equal(failing.body.fallback, true);
   const slow = await runLens(
-    { posting: "x", credentials, issuerPublicKey: issuer.publicKey },
+    { posting: "x", checks: await check(credentials) },
     { generate: () => new Promise(() => {}), timeoutMs: 20 },
   );
   assert.equal(slow.body.fallback, true);
-  const none = await runLens({ posting: "x", credentials, issuerPublicKey: issuer.publicKey }, {});
+  const none = await runLens({ posting: "x", checks: await check(credentials) }, {});
   assert.equal(none.body.fallback, true);
 });
 
 test("rejects an empty posting", async () => {
-  const { issuer, credentials } = await setup();
-  const { status } = await runLens({ posting: "  ", credentials, issuerPublicKey: issuer.publicKey }, {});
+  const { credentials, check } = await setup();
+  const { status } = await runLens({ posting: "  ", checks: await check(credentials) }, {});
   assert.equal(status, 400);
 });
 
@@ -129,7 +138,7 @@ test("normalizes an Adzuna result and flags truncated descriptions", () => {
 });
 
 test("project suggestions: only real catalog ids, only on soft/technical gaps, max 2", async () => {
-  const { issuer, credentials } = await setup();
+  const { credentials, check } = await setup();
   const suggest = (projectId) => ({ projectId, why: "practice" });
   const generate = async () => ({
     requirements: [
@@ -139,7 +148,7 @@ test("project suggestions: only real catalog ids, only on soft/technical gaps, m
       { ...req("Writing", "soft", []), suggestedProjects: [suggest("newsletter"), suggest("digital-guide"), suggest("tech-help-hour")] },
     ],
   });
-  const { body } = await runLens({ posting: "x", credentials, issuerPublicKey: issuer.publicKey }, { generate });
+  const { body } = await runLens({ posting: "x", checks: await check(credentials) }, { generate });
   const [sheets, licence, explain, writing] = body.requirements;
   assert.deepEqual(sheets.suggestedProjects.map((p) => p.projectId), ["volunteer-database"]);
   assert.equal(sheets.suggestedProjects[0].title, "Clean up a volunteer database");
@@ -151,10 +160,10 @@ test("project suggestions: only real catalog ids, only on soft/technical gaps, m
 });
 
 test("the prompt lists the project catalog", async () => {
-  const { issuer, credentials } = await setup();
+  const { credentials, check } = await setup();
   let prompt = "";
   await runLens(
-    { posting: "x", credentials, issuerPublicKey: issuer.publicKey },
+    { posting: "x", checks: await check(credentials) },
     { generate: async (input) => { prompt = input.prompt; return { requirements: [] }; } },
   );
   assert.ok(prompt.includes("[projectId: volunteer-database]"));

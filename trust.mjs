@@ -1,14 +1,25 @@
+// Credential format: compact JWS, EdDSA (Ed25519), header { alg, typ, kid }. The `kid` header and the
+// signed `issuerId` claim name the issuer. Shared by the server and the browser.
+//
+// This module only has low-level helpers. Deciding whether a credential is authentic happens on the server
+// in verification/credential-verifier.mjs, which takes the public key from the trusted issuer registry and
+// never from a caller.
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-function encode(bytes) {
+export const CREDENTIAL_ALG = "EdDSA";
+export const CREDENTIAL_TYP = "JWT";
+const MAX_TOKEN_LENGTH = 16000;
+const COMPACT_JWS = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+
+export function encode(bytes) {
   return btoa(String.fromCharCode(...new Uint8Array(bytes)))
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replaceAll("=", "");
 }
 
-function decode(value) {
+export function decode(value) {
   const padded = value
     .replaceAll("-", "+")
     .replaceAll("_", "/")
@@ -16,7 +27,8 @@ function decode(value) {
   return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
 }
 
-export async function createIssuer() {
+// Test helper: a fresh key pair. `issuerId` is what signCredential puts in the `kid` header.
+export async function createIssuer({ issuerId } = {}) {
   const keys = await crypto.subtle.generateKey({ name: "Ed25519" }, false, [
     "sign",
     "verify",
@@ -24,7 +36,7 @@ export async function createIssuer() {
   const publicKey = encode(
     await crypto.subtle.exportKey("spki", keys.publicKey),
   );
-  return { privateKey: keys.privateKey, publicKey };
+  return { issuerId, privateKey: keys.privateKey, publicKey };
 }
 
 export function groundedMappings(transcript, mappings) {
@@ -34,6 +46,8 @@ export function groundedMappings(transcript, mappings) {
   );
 }
 
+// issuer: { privateKey: CryptoKey, issuerId?: string }. With an issuerId, the header gets `kid` and the
+// payload must carry the same signed `issuerId`.
 export async function signCredential(payload, issuer) {
   if (
     !payload.transcript ||
@@ -45,9 +59,11 @@ export async function signCredential(payload, issuer) {
       "Each skill needs an exact quote from the confirmed transcript.",
     );
   }
-  const header = encode(
-    encoder.encode(JSON.stringify({ alg: "EdDSA", typ: "JWT" })),
-  );
+  if (issuer.issuerId !== undefined && payload.issuerId !== issuer.issuerId)
+    throw new Error("The payload issuerId must match the signing issuer.");
+  const headerFields = { alg: CREDENTIAL_ALG, typ: CREDENTIAL_TYP };
+  if (issuer.issuerId !== undefined) headerFields.kid = issuer.issuerId;
+  const header = encode(encoder.encode(JSON.stringify(headerFields)));
   const body = encode(encoder.encode(JSON.stringify(payload)));
   const signingInput = `${header}.${body}`;
   const signature = await crypto.subtle.sign(
@@ -58,40 +74,40 @@ export async function signCredential(payload, issuer) {
   return `${signingInput}.${encode(signature)}`;
 }
 
-export async function verifyCredential(jws, trustedPublicKey) {
+// Parses a compact JWS WITHOUT checking it. Returns null when it is not well-formed JSON objects.
+export function decodeCredential(jws) {
   try {
-    const parts = jws.split(".");
-    if (parts.length !== 3) return { valid: false };
-    const header = JSON.parse(decoder.decode(decode(parts[0])));
-    if (header.alg !== "EdDSA" || header.typ !== "JWT") return { valid: false };
-    const publicKey = await crypto.subtle.importKey(
-      "spki",
-      decode(trustedPublicKey),
-      { name: "Ed25519" },
-      false,
-      ["verify"],
-    );
-    const valid = await crypto.subtle.verify(
-      "Ed25519",
-      publicKey,
-      decode(parts[2]),
-      encoder.encode(`${parts[0]}.${parts[1]}`),
-    );
-    if (!valid) return { valid: false };
-    const payload = JSON.parse(decoder.decode(decode(parts[1])));
-    if (
-      !Array.isArray(payload.mappings) ||
-      !payload.mappings.length ||
-      groundedMappings(payload.transcript, payload.mappings).length !==
-        payload.mappings.length
-    )
-      return { valid: false };
-    return { valid: true, payload };
+    if (typeof jws !== "string" || jws.length > MAX_TOKEN_LENGTH || !COMPACT_JWS.test(jws)) return null;
+    const [headerPart, payloadPart, signaturePart] = jws.split(".");
+    const header = JSON.parse(decoder.decode(decode(headerPart)));
+    const payload = JSON.parse(decoder.decode(decode(payloadPart)));
+    const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+    if (!isObject(header) || !isObject(payload)) return null;
+    return {
+      header,
+      payload,
+      signingInput: encoder.encode(`${headerPart}.${payloadPart}`), // the exact bytes that were signed
+      signature: decode(signaturePart),
+    };
   } catch {
-    return { valid: false };
+    return null;
   }
 }
 
+export function importPublicKey(spkiBase64url) {
+  return crypto.subtle.importKey("spki", decode(spkiBase64url), { name: "Ed25519" }, false, ["verify"]);
+}
+
+// Ed25519 only: the algorithm is fixed here, never read from the token.
+export async function verifySignature(decoded, publicKey) {
+  try {
+    return await crypto.subtle.verify("Ed25519", publicKey, decoded.signature, decoded.signingInput);
+  } catch {
+    return false;
+  }
+}
+
+// Demo "tamper test": change one signed field so the signature no longer matches.
 export function alterCredential(jws) {
   const parts = jws.split(".");
   const payload = JSON.parse(decoder.decode(decode(parts[1])));

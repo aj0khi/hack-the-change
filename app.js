@@ -1,7 +1,6 @@
-import {
-  verifyCredential,
-  alterCredential,
-} from "./trust.mjs";
+// The browser never decides whether a credential is authentic: it asks the server (/api/credentials/verify),
+// which checks signatures against its trusted issuer registry and its issuance records.
+import { alterCredential } from "./trust.mjs";
 import { projects, communityVenues, calgaryAreas, atVenue } from "./lens/projects.mjs";
 import { skillTerms } from "./lens/skills.mjs";
 import { buildStudentPathway } from "./lens/student-pathway.mjs";
@@ -126,17 +125,30 @@ function writeState(key, value) {
   });
 }
 
-function saveMigratedCredentials(tokens, publicKey) {
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction("state", "readwrite");
-    const state = transaction.objectStore("state");
-    state.put(tokens, "credentials");
-    state.put(publicKey, "server-public-key");
-    state.delete("issuer");
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-    transaction.onabort = () => reject(transaction.error || new Error("Storage transaction aborted."));
+// Server verification results, keyed by token, cached for this page view and refreshed on load.
+const verificationResults = new Map();
+const UNAVAILABLE = { valid: false, status: "unavailable", message: "Verification is unavailable right now." };
+
+async function verifyWithServer(tokens) {
+  const results = [];
+  for (let start = 0; start < tokens.length; start += 50) {
+    const chunk = tokens.slice(start, start + 50);
+    try {
+      results.push(...(await demoRequest("/api/credentials/verify", { credentials: chunk })).results);
+    } catch {
+      results.push(...chunk.map(() => UNAVAILABLE)); // fail closed: never shown as verified
+    }
+  }
+  return results;
+}
+
+async function refreshVerification(tokens = credentials, { force = false } = {}) {
+  const missing = force ? tokens : tokens.filter((token) => !verificationResults.has(token));
+  const results = await verifyWithServer(missing);
+  missing.forEach((token, index) => {
+    if (results[index]?.status !== "unavailable") verificationResults.set(token, results[index]);
   });
+  return tokens.map((token) => verificationResults.get(token) ?? UNAVAILABLE);
 }
 
 async function initialize() {
@@ -145,33 +157,21 @@ async function initialize() {
       throw new Error("Use localhost or HTTPS for credential signing.");
     database = await openDatabase();
     await loadPostedProjects();
-    const oldIssuer = await readState("issuer");
-    const previousServerKey = await readState("server-public-key");
-    issuer = await demoRequest("/api/demo-credentials/issuer");
+    issuer = await demoRequest("/api/demo-credentials/issuer"); // { issuerId, name }: no key material
     const stored = await readState("credentials");
     if (stored === undefined) {
       credentials = [await signDemo(examples)];
     } else {
-      if (!Array.isArray(stored)) throw new Error("Stored credentials have an invalid format.");
-      const migrated = [];
-      let migrationApproved = false;
-      for (const token of stored) {
-        if ((await verifyCredential(token, issuer.publicKey)).valid) {
-          migrated.push(token);
-          continue;
-        }
-        const oldKey = previousServerKey || oldIssuer?.publicKey;
-        const previous = oldKey ? await verifyCredential(token, oldKey) : { valid: false };
-        if (!previous.valid) throw new Error("A saved credential cannot be verified with its original key. It was not changed.");
-        if (!migrationApproved) {
-          if (!window.confirm("To keep your saved demo credentials, their contents must be sent to this server and re-signed with its demo key. They will not be published unless you choose Share. Continue?")) throw new Error("Migration was declined.");
-          migrationApproved = true;
-        }
-        migrated.push(await signDemo(previous.payload));
-      }
-      credentials = migrated;
+      if (!Array.isArray(stored) || stored.some((token) => typeof token !== "string"))
+        throw new Error("Stored credentials have an invalid format.");
+      credentials = stored;
+      // Credentials from before issuer IDs were signed in: the server re-signs only ones it signed itself.
+      try {
+        const upgraded = (await demoRequest("/api/demo-credentials/upgrade", { credentials })).credentials;
+        if (Array.isArray(upgraded) && upgraded.length === credentials.length) credentials = upgraded;
+      } catch { /* keep the saved tokens unchanged */ }
     }
-    await saveMigratedCredentials(credentials, issuer.publicKey);
+    await writeState("credentials", credentials);
     await renderCredentials();
     renderLens();
   } catch (error) {
@@ -238,17 +238,18 @@ const findProjectsButton = (skill) =>
     ? `<button class="button subtle gap-explore" type="button" data-skill-filter="${escapeHTML(skill)}" aria-label="Find projects that build this skill: ${escapeHTML(skill)}">Find projects that build this skill <span class="kind-tag">${escapeHTML(skill)}</span> ${icon("map-pin")}</button>`
     : "";
 
-async function verifiedCredentials() {
+// Every credential with its SERVER verification result; `payload` carries the registry's issuer name.
+async function checkedCredentials() {
   if (!issuer) return [];
-  const checks = await Promise.all(
-    credentials.map(async (token, index) => ({
-      index,
-      token,
-      ...(await verifyCredential(token, issuer.publicKey)),
-    })),
-  );
-  return checks.filter((check) => check.valid);
+  const results = await refreshVerification(credentials);
+  return credentials.map((token, index) => ({ index, token, ...results[index], payload: results[index].credential }));
 }
+
+async function verifiedCredentials() {
+  return (await checkedCredentials()).filter((check) => check.valid && check.status === "verified");
+}
+
+
 
 function skillsMarkup(payload) {
   return `<div class="skills-row">${payload.mappings.map((mapping) => `<span class="skill-chip">${escapeHTML(mapping.skill)}</span>`).join("")}</div>`;
@@ -278,8 +279,8 @@ async function renderCredentials() {
         .slice()
         .reverse()
         .map(
-          ({ payload, index }) =>
-              `<article class="credential-full"><div class="credential-full-top"><span class="badge-symbol">${icon("award")}</span><div><h3>${escapeHTML(payload.title)}</h3><p>${escapeHTML(payload.student)} · ${escapeHTML(payload.issuer)} · ${escapeHTML(payload.issuedAt)} · Demo</p></div><span class="verified">${icon("shield-check")} SIGNATURE VALID</span></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”<strong>— ${escapeHTML(payload.witness)}, community member · ${payload.example ? "fictional example" : "demo entry"}</strong></div>${skillsMarkup(payload)}<div class="credential-actions"><span class="project-meta">EVIDENCE ATTACHED · DEMO</span><button class="text-link" type="button" data-share="${index}">Share ${icon("share-2")}</button><button class="text-link" type="button" data-credential="${index}">View credential ${icon("arrow-up-right")}</button></div></article>`,
+          ({ payload, index, ...result }) =>
+              `<article class="credential-full"><div class="credential-full-top"><span class="badge-symbol">${icon("award")}</span><div><h3>${escapeHTML(payload.title)}</h3><p>${escapeHTML(payload.student)} · ${escapeHTML(result.issuerName)} · ${escapeHTML(payload.issuedAt)} · Demo</p></div><span class="verified">${icon("shield-check")} SIGNATURE VALID</span></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”<strong>— ${escapeHTML(payload.witness)}, community member · ${payload.example ? "fictional example" : "demo entry"}</strong></div>${skillsMarkup(payload)}<div class="credential-actions"><span class="project-meta">EVIDENCE ATTACHED · DEMO</span><button class="text-link" type="button" data-share="${index}">Share ${icon("share-2")}</button><button class="text-link" type="button" data-credential="${index}">View credential ${icon("arrow-up-right")}</button></div></article>`,
         )
         .join("")
     : '<div class="credential-full"><h3>No valid signed credentials yet.</h3><p>Create a demo vouch to get started.</p></div>';
@@ -289,18 +290,17 @@ async function renderCredentials() {
 async function openCredential(index) {
   const token = credentials[index];
   if (!token || !issuer) return;
-  const result = await verifyCredential(token, issuer.publicKey);
-  if (!result.valid) {
-    announce("This credential is not valid.");
+  const [result] = await refreshVerification([token]);
+  if (result.status !== "verified") {
+    announce(result.message || "This credential could not be verified.");
     return;
   }
   selectedCredential = token;
-  const payload = result.payload;
+  const payload = result.credential;
   document.querySelector("#dialog-content").innerHTML =
-    `<div class="dialog-detail"><h3>${escapeHTML(payload.title)}</h3><p><strong>Issuer:</strong> ${escapeHTML(payload.issuer)} · demo identity</p><p><strong>Witness:</strong> ${escapeHTML(payload.witness)} ${payload.example ? "(fictional example)" : "(demo entry)"}</p><p><strong>Student:</strong> ${escapeHTML(payload.student)}</p><p><strong>Signature:</strong> valid against the server's demo issuer key</p></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”</div>${payload.mappings.map((mapping) => `<p><span class="skill-chip">${escapeHTML(mapping.skill)}</span> <span class="result-desc">“${escapeHTML(mapping.quote)}”</span></p>`).join("")}`;
+    `<div class="dialog-detail"><h3>${escapeHTML(payload.title)}</h3><p><strong>Issuer:</strong> ${escapeHTML(result.issuerName)} · from the server's trusted issuer registry</p><p><strong>Witness:</strong> ${escapeHTML(payload.witness)} ${payload.example ? "(fictional example)" : "(demo entry)"}</p><p><strong>Student:</strong> ${escapeHTML(payload.student)}</p><p><strong>Credential ID:</strong> ${escapeHTML(result.credentialId)}</p><p><strong>Status:</strong> ${escapeHTML(result.message)}</p></div><div class="credential-quote">“${escapeHTML(payload.transcript)}”</div>${payload.mappings.map((mapping) => `<p><span class="skill-chip">${escapeHTML(mapping.skill)}</span> <span class="result-desc">“${escapeHTML(mapping.quote)}”</span></p>`).join("")}`;
   document.querySelector("#credential-token").value = token;
-  document.querySelector("#verify-result").textContent =
-    "Signature valid against the server’s demo issuer key.";
+  document.querySelector("#verify-result").textContent = verifyMessage(result);
   document.querySelector("#credential-dialog").showModal();
   refreshIcons();
 }
@@ -414,14 +414,16 @@ document.querySelector("#tamper-token").addEventListener("click", () => {
   document.querySelector("#verify-result").textContent =
     "Credential changed. Check its signature.";
 });
+function verifyMessage(result) {
+  if (result.status === "verified") return `Verified by the server: signed by ${result.issuerName}, a trusted issuer.`;
+  return `Not valid. ${result.message || "The server could not verify this credential."}`;
+}
+// The tamper test asks the server, the same check employers and share links get.
 document.querySelector("#verify-token").addEventListener("click", async () => {
-  const result = await verifyCredential(
-    document.querySelector("#credential-token").value.trim(),
-    issuer.publicKey,
-  );
-  document.querySelector("#verify-result").textContent = result.valid
-    ? "Signature valid against the server’s demo issuer key."
-    : "Not valid: the signature does not match the credential or trusted demo key.";
+  const output = document.querySelector("#verify-result");
+  output.textContent = "Checking with the server…";
+  const [result] = await verifyWithServer([document.querySelector("#credential-token").value.trim()]);
+  output.textContent = verifyMessage(result);
 });
 document.querySelector("#close-share").addEventListener("click", () => document.querySelector("#share-dialog").close());
 document.querySelector("#share-dialog").addEventListener("close", () => {
@@ -456,8 +458,9 @@ document.querySelector("#prepare-linkedin").addEventListener("click", async (eve
   button.disabled = true;
   document.querySelector("#share-error").textContent = "";
   try {
-    const result = await verifyCredential(shareToken, issuer.publicKey);
-    if (!result.valid) throw new Error("This demo credential could not be verified.");
+    const [result] = await refreshVerification([shareToken], { force: true });
+    if (result.status !== "verified") throw new Error("This demo credential could not be verified.");
+    result.payload = result.credential;
     const link = document.querySelector("#share-link").href;
     linkedinCard = await makeShareCard(result.payload, link, document.querySelector("#share-qr").src);
     linkedinFile = new File([linkedinCard], "proofly-demo-credential.png", { type: "image/png" });
@@ -516,10 +519,10 @@ document.querySelector("#download-share-card").addEventListener("click", async (
   button.disabled = true;
   document.querySelector("#share-error").textContent = "";
   try {
-    const result = await verifyCredential(shareToken, issuer.publicKey);
-    if (!result.valid) throw new Error("This demo credential could not be verified.");
+    const [result] = await refreshVerification([shareToken], { force: true });
+    if (result.status !== "verified") throw new Error("This demo credential could not be verified.");
     const link = document.querySelector("#share-link").href;
-    const blob = await makeShareCard(result.payload, link, document.querySelector("#share-qr").src);
+    const blob = await makeShareCard(result.credential, link, document.querySelector("#share-qr").src);
     const objectUrl = URL.createObjectURL(blob);
     const download = document.createElement("a");
     download.href = objectUrl;
@@ -610,7 +613,7 @@ document.querySelector("#student-ai-analyze").addEventListener("click", async ()
     const response = await fetch("/api/lens", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ posting, credentials: valid.map((item) => item.token), issuerPublicKey: issuer.publicKey }),
+      body: JSON.stringify({ posting, credentials: valid.map((item) => item.token) }), // the server verifies them itself
     });
     const data = await response.json();
     if (renderId !== lensRender) return;

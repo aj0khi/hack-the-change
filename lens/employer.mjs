@@ -28,7 +28,8 @@ export async function analyzePublishedCredentials({ posting, links }, { appOrigi
     url: `${appOrigin}/verify/${ids[index]}`, student: payload.student, title: payload.title,
     issuer: payload.issuer, witness: payload.witness,
   }));
-  const result = await runLens({ posting, credentials: credentials.map(c => c.token), issuerPublicKey: store.publicKey }, { generate, model });
+  // Every credential was already checked by the shared verifier in store.getPublished.
+  const result = await runLens({ posting, checks: credentials.map(c => c.result) }, { generate, model });
   if (result.status !== 200) return result;
   if (!result.body.fallback) return { status: 200, body: { mode: 'ai', sources, ...result.body } };
   const postingLines = posting.split(/\n+|(?<=[.!?])\s+/)
