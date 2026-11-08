@@ -48,6 +48,7 @@ nonisolated struct LensOutcome: Sendable {
     nonisolated enum Mode: Sendable { case ai, offline }
     let mode: Mode
     let rows: [LensRow]
+    var input = ""                 // the posting that was analysed (Student view builds its pathway from it)
     var rejected: [LensRejection] = []
     var model = ""
     var validCredentials = 0
@@ -61,6 +62,13 @@ nonisolated struct LensOutcome: Sendable {
 nonisolated enum EmployerLens {
     static let disclaimerAI = "AI extracts requirements and proposes matches; every quote is checked word-for-word against a signed credential before it's shown. Gaps are never filled by AI. Not a hiring recommendation."
     static let disclaimerOffline = "The AI lens is unavailable, so simple keyword rules matched requirements to signed credentials. Review every source and gap yourself. Not a hiring recommendation."
+    static let disclaimerStudent = "Student view uses keyword hints and this phone's signed demo evidence, not an assessment of your ability or a hiring recommendation. Project ideas are fictional. Review the full posting, including qualifications we may miss."
+
+    /// Case-insensitive regex test, like a JS /…/i pattern.
+    static func matches(_ pattern: String, _ text: String) -> Bool {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return false }
+        return regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
+    }
 
     /// Same split as the web: new lines and sentence ends, bullets removed, very short bits dropped, max 20.
     static func requirements(from posting: String) -> [String] {
@@ -96,7 +104,11 @@ nonisolated enum EmployerLens {
         }
         var rows: [LensRow] = []
         for (index, line) in requirements(from: posting).enumerated() {
-            if let match = mappings.first(where: { DemoData.requirement(line, mentions: $0.mapping.skill) }) {
+            // Same rule as app.js: a line asking for SQL only matches a quote that mentions SQL.
+            let asksForSQL = matches(#"\bsql\b"#, line)
+            if let match = mappings.first(where: {
+                DemoData.requirement(line, mentions: $0.mapping.skill) && (!asksForSQL || matches(#"\bsql\b"#, $0.mapping.quote))
+            }) {
                 let evidence = LensMatch(credentialID: match.id, label: match.mapping.skill, quote: match.mapping.quote)
                 rows.append(LensRow(id: index, requirement: line, matches: [evidence]))
             } else {
@@ -107,7 +119,14 @@ nonisolated enum EmployerLens {
     }
 
     /// Catalog projects sharing the most skills the line mentions (at most two, ties keep catalog order).
+    /// SQL lines get the SQL practice projects instead (keywordProjectSuggestions in lens/projects.mjs).
     static func keywordSuggestions(for line: String) -> [ProjectSuggestion] {
+        if matches(#"\bsql\b"#, line) {
+            return DemoData.projects.filter { $0.topics.contains("sql") }.prefix(2).map {
+                ProjectSuggestion(title: $0.title, organization: $0.organization, time: $0.time,
+                                  why: "Practises SQL queries using fictional data.", skills: $0.skills)
+            }
+        }
         let wanted = DemoData.skills.filter { DemoData.requirement(line, mentions: $0) }
         guard !wanted.isEmpty else { return [] }
         var scored: [(index: Int, project: CommunityProject, shared: [String])] = []
@@ -125,7 +144,7 @@ nonisolated enum EmployerLens {
 
     static func offline(posting: String, credentials: [VerifiedCredential]) -> LensOutcome {
         LensOutcome(mode: .offline, rows: keywordLens(posting: posting, credentials: credentials),
-                    validCredentials: credentials.count)
+                    input: posting, validCredentials: credentials.count)
     }
 
     /// "Builds Digital: mentioned in 12 of 30 Calgary posting excerpts (Adzuna)" — the most-asked-for skill.
@@ -138,6 +157,77 @@ nonisolated enum EmployerLens {
         }
         guard let best, best.count > 0 else { return nil }
         return "Builds \(best.skill): mentioned in \(best.count) of \(demand.total) Calgary posting excerpts (Adzuna)"
+    }
+}
+
+// MARK: - Student skill pathway (port of lens/student-pathway.mjs)
+
+nonisolated struct PathwayEvidence: Hashable, Sendable {
+    let credentialID: Int
+    let skill: String
+    let quote: String
+}
+
+nonisolated struct PathwaySkill: Identifiable, Hashable, Sendable {
+    var id: String { name }
+    let name: String
+    let context: String                  // "…the words around the first mention…"
+    let evidence: [PathwayEvidence]      // at most three
+    let projects: [CommunityProject]     // practice ideas from the catalog
+}
+
+nonisolated enum StudentPathway {
+    /// Named tools the posting may ask for, each with hand-picked practice projects.
+    static let specificSkills: [(name: String, pattern: String, projectIDs: [String])] = [
+        ("SQL", #"\bsql\b"#, ["community-sql-report", "sql-food-pantry"]),
+        ("Excel", #"\bexcel\b"#, ["food-pantry-budget", "signup-sheet", "spreadsheet-rota"]),
+        ("Spreadsheets", #"\bspreadsheet\w*\b|\bgoogle sheets\b"#, ["signup-sheet", "food-pantry-budget", "spreadsheet-rota"]),
+        ("Databases", #"\bdatabase\w*\b"#, ["volunteer-database", "database-resource-list", "community-sql-report"]),
+        ("Customer service", #"\bcustomer service\b"#, ["welcome-desk", "tech-help-hour", "service-faq"]),
+        ("Python", #"\bpython\b"#, ["python-donations", "python-event-counts"]),
+        ("JavaScript", #"\bjavascript\b"#, ["javascript-event-page", "javascript-resource-finder"]),
+    ]
+
+    /// Up to 75 characters before and 100 after the first match, whitespace collapsed (UTF-16 like JS).
+    static func postingContext(_ posting: String, pattern: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let match = regex.firstMatch(in: posting, range: NSRange(posting.startIndex..., in: posting))
+        else { return "" }
+        let text = posting as NSString
+        let start = max(0, match.range.location - 75)
+        let end = min(text.length, match.range.location + 100)
+        let slice = text.substring(with: NSRange(location: start, length: end - start))
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+        return (start > 0 ? "…" : "") + slice + (end < text.length ? "…" : "")
+    }
+
+    /// Credentials passed here must already have been verified on this phone.
+    static func build(posting: String, credentials: [VerifiedCredential],
+                      catalog: [CommunityProject] = DemoData.projects) -> [PathwaySkill] {
+        let evidence = credentials.flatMap { credential in
+            credential.payload.mappings.map { PathwayEvidence(credentialID: credential.id, skill: $0.skill, quote: $0.quote) }
+        }
+        var skills: [PathwaySkill] = []
+        for item in specificSkills where EmployerLens.matches(item.pattern, posting) {
+            skills.append(PathwaySkill(
+                name: item.name,
+                context: postingContext(posting, pattern: item.pattern),
+                evidence: Array(evidence.filter { EmployerLens.matches(item.pattern, $0.quote) }.prefix(3)),
+                projects: item.projectIDs.compactMap { id in catalog.first { $0.id == id } }))
+        }
+        for name in DemoData.skills {
+            guard var pattern = DemoData.skillTerms[name] else { continue }
+            // The web narrows Digital here so spreadsheet/Excel lines are left to the named tools above.
+            if name == "Digital" { pattern = #"\b(digital|technology|technical|computer\w*|software)\b"# }
+            guard EmployerLens.matches(pattern, posting) else { continue }
+            skills.append(PathwaySkill(
+                name: name,
+                context: postingContext(posting, pattern: pattern),
+                evidence: Array(evidence.filter { $0.skill == name }.prefix(3)),
+                projects: catalog.filter { $0.skills.contains(name) }))
+        }
+        return skills
     }
 }
 
@@ -217,7 +307,7 @@ nonisolated enum LensAPI {
 
     /// Turns a server answer into rows, checking every quote again on the phone (belt and braces).
     static func outcome(from response: LensResponse, submission: LensSubmission,
-                        credentials: [VerifiedCredential]) throws -> LensOutcome {
+                        credentials: [VerifiedCredential], posting: String = "") throws -> LensOutcome {
         guard response.fallback != true, response.error == nil, let requirements = response.requirements else {
             throw Failure.unavailable
         }
@@ -261,7 +351,7 @@ nonisolated enum LensAPI {
             rows.append(LensRow(id: index, requirement: requirement.text, matches: matches,
                                 kind: kind, suggestions: suggestions, keywordBased: false))
         }
-        return LensOutcome(mode: .ai, rows: rows, rejected: rejected, model: response.model ?? "unknown",
+        return LensOutcome(mode: .ai, rows: rows, input: posting, rejected: rejected, model: response.model ?? "unknown",
                            validCredentials: response.stats?.validCredentials ?? submission.tokens.count,
                            cached: response.cached ?? false)
     }
@@ -275,7 +365,7 @@ nonisolated enum LensAPI {
             LensRequestBody(posting: posting, credentials: submission.tokens, issuerPublicKey: submission.publicKeySPKI))
         let (data, _) = try await URLSession.shared.data(for: request)
         let response = try JSONDecoder().decode(LensResponse.self, from: data)
-        return try outcome(from: response, submission: submission, credentials: credentials)
+        return try outcome(from: response, submission: submission, credentials: credentials, posting: posting)
     }
 
     static func jobs() async -> JobsResponse? {

@@ -10,7 +10,7 @@ import SwiftUI
 @main
 struct VouchApp: App {
     init() {
-        VFont.register()   // Manrope + DM Sans, same fonts as the website
+        VFont.register()   // DM Serif Display + Manrope + DM Sans, same fonts as the website
     }
 
     var body: some Scene {

@@ -91,7 +91,7 @@ struct BadgeLookupCard: View {
         VStack(alignment: .leading, spacing: 0) {
             CardLabel(left: "03 / Public badge record")
             Text("Look up a Badgr badge")
-                .font(.display(20, relativeTo: .title2)).foregroundStyle(VColor.ink)
+                .font(.serif(27, relativeTo: .title2)).foregroundStyle(VColor.ink)
                 .padding(.top, 20)
                 .accessibilityAddTraits(.isHeader)
             Text("Check the status of a publicly shared hosted assertion on Badgr / Parchment Digital Badges.")
@@ -136,10 +136,10 @@ struct BadgeLookupCard: View {
 
             if let result {
                 Text(result)
-                    .font(.text(14)).foregroundStyle(Color(hex: 0x344E3E))
+                    .font(.text(14)).foregroundStyle(VColor.statusText)
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(hex: 0xEEF3ED), in: .rect(cornerRadius: 4))
+                    .background(VColor.statusBackground, in: .rect(cornerRadius: 8))
                     .padding(.top, 14)
             }
         }
@@ -252,11 +252,11 @@ private struct VerificationPanel<Content: View>: View {
                 Text(number).font(.display(13, relativeTo: .footnote)).foregroundStyle(VColor.blue)
                 Text(label.uppercased())
                     .font(.text(10, weight: .bold, relativeTo: .caption2)).tracking(1)
-                    .foregroundStyle(Color(hex: 0x788880))
+                    .foregroundStyle(VColor.muted)
             }
             .accessibilityElement(children: .combine)
             Text(title)
-                .font(.display(20, relativeTo: .title2)).foregroundStyle(VColor.ink)
+                .font(.serif(27, relativeTo: .title2)).foregroundStyle(VColor.ink)
                 .padding(.top, 14)
                 .accessibilityAddTraits(.isHeader)
             Text(text).font(.text(13)).foregroundStyle(VColor.verificationBody).padding(.top, 8)
@@ -270,10 +270,10 @@ private struct StatusBox: View {
     let text: String
     var body: some View {
         Text(text)
-            .font(.text(13, relativeTo: .footnote)).foregroundStyle(Color(hex: 0x455F4C))
+            .font(.text(13, relativeTo: .footnote)).foregroundStyle(VColor.statusText)
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(hex: 0xF0F4EE), in: .rect(cornerRadius: 4))
+            .background(VColor.statusBackground, in: .rect(cornerRadius: 8))
             .padding(.top, 16)
     }
 }
@@ -342,7 +342,7 @@ private struct VerificationAside: View {
                     }
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .overlay(alignment: .top) { Rectangle().fill(Color(hex: 0xD5E0D5)).frame(height: 1) }
+                    .overlay(alignment: .top) { Rectangle().fill(VColor.greenPanelRule).frame(height: 1) }
                     .accessibilityElement(children: .combine)
                 }
             }

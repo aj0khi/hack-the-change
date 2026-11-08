@@ -24,12 +24,12 @@ struct VouchView: View {
         VPage {
             PageHeading(overline: "The people behind the proof", title: "Every good story starts with someone",
                         subtitle: "Tell us about the help you received, in your own words.",
-                        badge: ("Community view", "person.2"))
+                        badge: ("Community view", "hand.raised"))
             EvidenceAside().padding(.top, 28)
 
             VStack(alignment: .leading, spacing: 0) {
                 CardLabel(left: "Your words matter", right: "About 2 min")
-                Text("How did it go?").font(.display(22, relativeTo: .title2)).foregroundStyle(VColor.ink).padding(.top, 22)
+                Text("How did it go?").font(.serif(27, relativeTo: .title2)).foregroundStyle(VColor.ink).padding(.top, 22)
                 Text("Use your own words. You can type or tap Use voice.")
                     .font(.text(14)).foregroundStyle(VColor.bodyText).padding(.top, 7).padding(.bottom, 22)
 
@@ -71,7 +71,7 @@ struct VouchView: View {
                             .foregroundStyle(speech.isRecording ? .white : VColor.blue)
                             .padding(.horizontal, 12)
                             .frame(minHeight: 40)
-                            .background(speech.isRecording ? Color(hex: 0xC4553D) : VColor.voiceBackground, in: .rect(cornerRadius: 4))
+                            .background(speech.isRecording ? VColor.invalidText : VColor.voiceBackground, in: .rect(cornerRadius: 4))
                     }
                     .accessibilityLabel(speech.isRecording ? "Stop voice input" : "Use voice")
                 }
@@ -97,7 +97,7 @@ struct VouchView: View {
                     Text("Your sentences will appear here once you've said or typed something.")
                         .font(.text(13)).foregroundStyle(VColor.hint)
                         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                        .background(VColor.skillOption, in: .rect(cornerRadius: 4))
+                        .background(VColor.skillOption, in: .rect(cornerRadius: 5))
                         .padding(.top, 12)
                 } else {
                     VStack(spacing: 10) {
@@ -116,7 +116,7 @@ struct VouchView: View {
                 Label("Saved on this phone only. Don't enter sensitive information.", systemImage: "lock")
                     .font(.text(13)).foregroundStyle(VColor.noticeText)
                     .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(hex: 0xEEF3ED), in: .rect(cornerRadius: 4))
+                    .background(VColor.tint, in: .rect(cornerRadius: 5))
                     .padding(.top, 18)
 
                 if let error {
@@ -186,14 +186,14 @@ struct VouchView: View {
     }
 }
 
-/// Green "Your experience is the evidence." panel (shown first on phones, like the website).
+/// Lavender "Your experience is the evidence." panel (shown first on phones, like the website).
 private struct EvidenceAside: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("“").font(.display(54, relativeTo: .largeTitle)).foregroundStyle(Color(hex: 0xA9C1A9)).frame(height: 34)
+            Text("“").font(.custom("Georgia-Bold", size: 70, relativeTo: .largeTitle)).foregroundStyle(VColor.greenPanelKicker).frame(height: 40)
                 .accessibilityHidden(true)
             Text("Your experience is the evidence.")
-                .font(.display(25, relativeTo: .title)).foregroundStyle(Color(hex: 0x3B5547)).padding(.top, 10)
+                .font(.serif(31, relativeTo: .title)).foregroundStyle(VColor.greenPanelText).padding(.top, 10)
             Text("What you say helps someone show what they can do. Nothing is issued until you confirm your words.")
                 .font(.text(14)).foregroundStyle(VColor.greenPanelBody).lineSpacing(4).padding(.top, 10)
             VStack(spacing: 0) {
@@ -204,13 +204,13 @@ private struct EvidenceAside: View {
             .overlay(alignment: .top) { Rectangle().fill(VColor.greenPanelRule).frame(height: 1) }
             .padding(.top, 22)
         }
-        .vCard(background: Color(hex: 0xE7EEE6), border: nil, padding: 24)
+        .vCard(background: VColor.greenPanel, border: nil, padding: 26)
     }
 
     private func step(_ number: String, _ text: String) -> some View {
         HStack(spacing: 18) {
-            Text(number).font(.text(12, weight: .bold, relativeTo: .caption)).foregroundStyle(Color(hex: 0x93AD94))
-            Text(text).font(.text(15, weight: .bold)).foregroundStyle(Color(hex: 0x3B5547))
+            Text(number).font(.text(12, weight: .bold, relativeTo: .caption)).foregroundStyle(VColor.greenPanelKicker)
+            Text(text).font(.text(15, weight: .bold)).foregroundStyle(VColor.greenPanelText)
             Spacer()
         }
         .padding(.vertical, 14)
@@ -288,13 +288,13 @@ private struct ApprovalSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Overline(text: "Demo coordinator review")
-                Text("Review the vouch").font(.display(24, relativeTo: .title)).foregroundStyle(VColor.ink).padding(.top, 8)
+                Text("Review the vouch").font(.serif(28, relativeTo: .title)).foregroundStyle(VColor.ink).padding(.top, 8)
                 Text("This is a simulated approval, not a real organization or identity check. Review the confirmed words before issuing.")
                     .font(.text(14)).foregroundStyle(VColor.bodyText).padding(.top, 8)
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text(payload.title).font(.display(17, bold: true, relativeTo: .headline)).foregroundStyle(VColor.ink)
-                    Text("Confirmed by: \(payload.witness)").font(.text(14)).foregroundStyle(Color(hex: 0x7D8F83))
+                    Text("Confirmed by: \(payload.witness)").font(.text(14)).foregroundStyle(VColor.muted)
                 }
                 .padding(18).frame(maxWidth: .infinity, alignment: .leading)
                 .background(VColor.dialogDetail, in: .rect(cornerRadius: 4))

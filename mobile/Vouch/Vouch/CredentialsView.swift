@@ -94,13 +94,13 @@ private struct CredentialCard: View {
     }
 }
 
-/// Green "THE TRUST LAYER" explainer panel.
+/// Lavender "THE TRUST LAYER" explainer panel.
 private struct TrustLayerPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Overline(text: "The trust layer", color: VColor.greenPanelKicker)
             Text("Proof you can look closer at.")
-                .font(.display(25, relativeTo: .title)).foregroundStyle(VColor.greenPanelText)
+                .font(.serif(31, relativeTo: .title)).foregroundStyle(VColor.greenPanelText)
                 .padding(.top, 22)
             Text("Each credential is signed using a demo issuer key stored on this device. Editing its contents breaks the signature.")
                 .font(.text(14)).foregroundStyle(VColor.greenPanelBody).lineSpacing(4).padding(.top, 11)
@@ -110,10 +110,10 @@ private struct TrustLayerPanel: View {
                 item("No account or personal data sent", "lock")
             }
             .padding(.vertical, 20)
-            Rectangle().fill(Color(hex: 0xD5E0D5)).frame(height: 1)
+            Rectangle().fill(VColor.greenPanelRule).frame(height: 1)
             Text("DEMO ONLY · NOT AN OPEN BADGE")
                 .font(.text(10, weight: .bold, relativeTo: .caption2)).tracking(1)
-                .foregroundStyle(Color(hex: 0x8BA08E)).padding(.top, 16)
+                .foregroundStyle(VColor.greenPanelKicker).padding(.top, 16)
         }
         .vCard(background: VColor.greenPanel, border: nil, padding: 24)
     }
@@ -139,7 +139,7 @@ struct CredentialDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Overline(text: "Look closer")
-                Text("Credential details").font(.display(26, relativeTo: .title)).foregroundStyle(VColor.ink)
+                Text("Credential details").font(.serif(29, relativeTo: .title)).foregroundStyle(VColor.ink)
                     .padding(.top, 8).padding(.bottom, 20)
                     .accessibilityAddTraits(.isHeader)
 
@@ -241,7 +241,7 @@ struct CredentialDetailView: View {
     }
 
     private func detail(_ label: String, _ value: String) -> some View {
-        (Text("\(label): ").fontWeight(.bold).foregroundStyle(VColor.ink) + Text(value).foregroundStyle(Color(hex: 0x7D8F83)))
+        (Text("\(label): ").fontWeight(.bold).foregroundStyle(VColor.ink) + Text(value).foregroundStyle(VColor.muted))
             .font(.text(14))
     }
 }

@@ -85,9 +85,29 @@ final class VouchTrustTests: XCTestCase {
     }
 
     func testCatalogMatchesTheWebProjects() {
-        XCTAssertEqual(DemoData.projects.map(\.id), ["video-calls", "signup-sheet", "digital-guide", "volunteer-database",
-                                                    "tech-help-hour", "event-check-in", "newsletter", "newcomer-setup"])
+        XCTAssertEqual(DemoData.projects.count, 22)
+        XCTAssertEqual(DemoData.projects.prefix(3).map(\.id), ["video-calls", "signup-sheet", "digital-guide"])
+        XCTAssertEqual(Set(DemoData.projects.map(\.id)).count, 22, "ids must be unique")
         XCTAssertTrue(DemoData.projects.allSatisfy { $0.skills.allSatisfy { DemoData.skills.contains($0) } })
+        XCTAssertEqual(DemoData.projects.filter { $0.topics.contains("sql") }.map(\.id), ["community-sql-report", "sql-food-pantry"])
+    }
+
+    func testSQLLinesGetSQLProjects() {
+        XCTAssertEqual(EmployerLens.keywordSuggestions(for: "Basic SQL or database experience is an asset.").map(\.title),
+                       ["Explore a fictional community database with SQL", "Query a sample food pantry inventory"])
+    }
+
+    /// Expected values come from running lens/student-pathway.mjs on the same example (Node, 2026-11-07).
+    func testStudentPathwayMatchesTheWeb() throws {
+        let skills = StudentPathway.build(posting: DemoData.exampleJob, credentials: [try exampleCredential()])
+        XCTAssertEqual(skills.map(\.name), ["SQL", "Excel", "Spreadsheets", "Databases", "Communication", "Digital", "Writing"])
+        XCTAssertEqual(skills.map(\.evidence.count), [0, 0, 0, 0, 1, 1, 0])
+        XCTAssertEqual(skills[0].projects.map(\.id), ["community-sql-report", "sql-food-pantry"])
+        XCTAssertEqual(skills[1].projects.map(\.id), ["food-pantry-budget", "signup-sheet", "spreadsheet-rota"])
+        XCTAssertEqual(skills[4].projects.count, 7)
+        XCTAssertEqual(skills[5].projects.count, 14)
+        XCTAssertEqual(skills[4].evidence.first?.quote, "Priya was patient and explained every step clearly.")
+        XCTAssertEqual(skills[0].context, "…r documentation. Comfort with spreadsheets (Excel or Google Sheets). Basic SQL or database experience is an asset. A valid Class 5 Alberta driver's licence and a clean police…")
     }
 
     /// The phone re-checks AI answers: unknown credentials and paraphrased quotes are dropped,

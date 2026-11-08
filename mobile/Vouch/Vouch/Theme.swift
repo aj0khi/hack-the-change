@@ -16,126 +16,146 @@ extension Color {
     }
 }
 
+/// Proofly's "lavender, ink and warm white" palette: the final :root block in styles.css,
+/// with each value read from the live web page's computed styles at phone width.
 enum VColor {
-    static let ink = Color(hex: 0x20282B)
-    static let muted = Color(hex: 0x75817E)
-    static let blue = Color(hex: 0x314FDF)
-    static let blueDark = Color(hex: 0x263FBA)
-    static let line = Color(hex: 0xE6E9E5)
-    static let paper = Color(hex: 0xF6F7F5)
-    static let card = Color.white
-    static let cardBorder = Color(hex: 0xE8ECE8)
+    static let ink = Color(hex: 0x302941)
+    static let muted = Color(hex: 0x625C70)
+    static let blue = Color(hex: 0x59458E)          // --blue (primary purple)
+    static let blueDark = Color(hex: 0x44346F)      // --blue-dark
+    static let line = Color(hex: 0xE7E1ED)
+    static let paper = Color(hex: 0xF8F6FA)
+    static let surface = Color(hex: 0xFFFCFA)       // warm white cards and header
+    static let tint = Color(hex: 0xF0EBF7)
+    static let tintStrong = Color(hex: 0xE4DCF0)
+    static let card = surface
+    static let cardBorder = line
+    static let shadow = Color(hex: 0x4F3E67)
 
-    static let overline = Color(hex: 0x9BA8A1)
-    static let overlineDot = Color(hex: 0x7AB087)
-    static let subtitle = Color(hex: 0x87938E)
-    static let spark = Color(hex: 0xEC9E7B)
-    static let cardLabel = Color(hex: 0xA0ADA5)
-    static let bodyText = Color(hex: 0x8E9D94)
+    static let overline = Color(hex: 0x655B76)
+    static let overlineDot = Color(hex: 0x7862A0)
+    static let subtitle = muted
+    static let spark = Color(hex: 0x8571A7)
+    static let cardLabel = Color(hex: 0x655B70)
+    static let bodyText = muted
 
-    static let noticeText = Color(hex: 0x728075)
-    static let noticeBorder = Color(hex: 0xE2E8DF)
-    static let noticeBackground = Color(hex: 0xF1F5EE)
+    static let noticeText = Color(hex: 0x554B68)
+    static let noticeBorder = Color(hex: 0xE1D9EB)
+    static let noticeBackground = tint
 
-    static let navActive = Color(hex: 0xEEF1FF)
-    static let navText = Color(hex: 0x7A8784)
-    static let navCount = Color(hex: 0xE1E6FF)
-    static let avatar = Color(hex: 0xE7B6A1)
-    static let avatarText = Color(hex: 0x533B39)
-    static let pillText = Color(hex: 0x718D72)
-    static let pillDot = Color(hex: 0x79A77B)
+    static let navActive = tintStrong
+    static let navActiveText = blueDark
+    static let navText = Color(hex: 0x5D5669)
+    static let navCount = Color(hex: 0xD7CCE8)
+    static let avatar = tintStrong
+    static let avatarText = blueDark
+    static let pillText = noticeText
+    static let pillDot = overlineDot
+    static let breadcrumb = Color(hex: 0x6E6577)
+    static let breadcrumbStrong = Color(hex: 0x4D455B)
 
-    static let heroBackground = Color(hex: 0xC9DDD1)
-    static let heroPhoto = Color(hex: 0xAAC9B5)
-    static let heroTitle = Color(hex: 0x263F37)
-    static let heroEmphasis = Color(hex: 0x668B75)
-    static let heroText = Color(hex: 0x647D70)
-    static let heroTag = Color(hex: 0x668376)
-    static let captionText = Color(hex: 0x899A8D)
-    static let captionArrow = Color(hex: 0xD47E66)
+    static let heroBackground = Color(hex: 0xE8E0F2)
+    static let heroPhoto = Color(hex: 0xD9CEE8)
+    static let heroTitle = ink
+    static let heroEmphasis = Color(hex: 0x6A538C)
+    static let heroText = Color(hex: 0x51475F)
+    static let heroTag = Color(hex: 0x605173)
+    static let captionText = Color(hex: 0x574965)
+    static let captionArrow = Color(hex: 0x806B9C)
 
-    static let impactBackground = Color(hex: 0x343E58)
-    static let impactKicker = Color(hex: 0xAFB9C9)
-    static let impactSpark = Color(hex: 0xB6CBA3)
-    static let impactSub = Color(hex: 0xC1CAD5)
-    static let impactText = Color(hex: 0xAAB6C4)
-    static let impactRule = Color(hex: 0x59647C)
-    static let impactDetail = Color(hex: 0xB8C2CE)
-    static let impactCheck = Color(hex: 0x9ECBA5)
+    static let impactTop = Color(hex: 0xF1EAF7)      // linear-gradient(145deg, #f1eaf7, #e6deef)
+    static let impactBottom = Color(hex: 0xE6DEEF)
+    static let impactKicker = Color(hex: 0x594E61)
+    static let impactSpark = Color(hex: 0x725C96)
+    static let impactSub = impactKicker
+    static let impactText = impactKicker
+    static let impactRule = Color(hex: 0xD5C9E2)
+    static let impactDetail = impactKicker
+    static let impactCheck = impactSpark
 
-    static let meta = Color(hex: 0x9DAAA2)
-    static let projectText = Color(hex: 0x8E9B94)
-    static let arrowBorder = Color(hex: 0xE9EEE9)
-    static let arrowIcon = Color(hex: 0x82948A)
+    static let journeyNumber = Color(hex: 0x725C96)
 
-    static let howBackground = Color(hex: 0xF0F4EB)
-    static let howBorder = Color(hex: 0xE4E9DF)
-    static let howSymbolBackground = Color(hex: 0xE2EBDC)
-    static let howSymbol = Color(hex: 0x719177)
-    static let howText = Color(hex: 0x95A295)
+    static let meta = muted
+    static let projectText = muted
+    static let arrowBorder = Color(hex: 0xDDD4E8)
+    static let arrowIcon = blue
 
-    static let chipBackground = Color(hex: 0xF2F5F1)
-    static let chipText = Color(hex: 0x6F8373)
-    static let verifiedText = Color(hex: 0x558D68)
-    static let verifiedBackground = Color(hex: 0xECF6ED)
-    static let invalidText = Color(hex: 0xAD5440)
+    static let howBackground = tint
+    static let howBorder = line
+    static let howSymbolBackground = tintStrong
+    static let howSymbol = blue
+    static let howText = muted
+
+    static let chipBackground = tint
+    static let chipText = Color(hex: 0x51436D)
+    static let verifiedText = Color(hex: 0x51416F)
+    static let verifiedBackground = Color(hex: 0xEAE4F3)
+    static let invalidText = Color(hex: 0xA7432D)
     static let invalidBackground = Color(hex: 0xFFF0EB)
-    static let badgeBackground = Color(hex: 0xF7E9DD)
-    static let badgeIcon = Color(hex: 0xC9855E)
-    static let credentialMeta = Color(hex: 0x90A099)
+    static let badgeBackground = tintStrong
+    static let badgeIcon = blue
+    static let credentialMeta = muted
 
-    static let quoteBackground = Color(hex: 0xF7F8F5)
-    static let quoteBorder = Color(hex: 0xBACFB7)
-    static let quoteText = Color(hex: 0x55685D)
-    static let quoteAttribution = Color(hex: 0x9AA99D)
+    static let quoteBackground = Color(hex: 0xF5F1F8)
+    static let quoteBorder = Color(hex: 0xA898C0)
+    static let quoteText = Color(hex: 0x51485B)
+    static let quoteAttribution = Color(hex: 0x63586B)
 
-    static let resultBackground = Color(hex: 0xEAF5EB)
-    static let resultIcon = Color(hex: 0x568B67)
-    static let gapBackground = Color(hex: 0xF1F2EF)
-    static let gapIcon = Color(hex: 0xA3ADA5)
-    static let resultText = Color(hex: 0x84948A)
+    static let resultBackground = verifiedBackground
+    static let resultIcon = verifiedText
+    static let gapBackground = Color(hex: 0xEEEAF0)
+    static let gapIcon = Color(hex: 0x5E5665)
+    static let resultText = Color(hex: 0x625A6C)
 
-    static let greenPanel = Color(hex: 0xE8EEE8)
-    static let greenPanelText = Color(hex: 0x354B3F)
-    static let greenPanelBody = Color(hex: 0x748B7A)
-    static let greenPanelKicker = Color(hex: 0x85998A)
-    static let greenPanelRule = Color(hex: 0xCFDDCF)
-    static let greenPanelIcon = Color(hex: 0x689473)
+    // Side panels (.explain-panel, .vouch-aside, .verification-aside). Kept the old "greenPanel" names.
+    static let greenPanel = tint
+    static let greenPanelText = ink
+    static let greenPanelBody = muted
+    static let greenPanelKicker = Color(hex: 0x75618F)
+    static let greenPanelRule = Color(hex: 0xDED4E8)
+    static let greenPanelIcon = greenPanelKicker
 
-    static let lensPromo = Color(hex: 0xEEF0FA)
-    static let lensPromoKicker = Color(hex: 0x909DC1)
-    static let lensPromoText = Color(hex: 0x8B96AC)
-    static let lensIcon = Color(hex: 0x7182C4)
-    static let lensIconBackground = Color(hex: 0xE2E6FA)
-    static let roleBadge = Color(hex: 0xEAF0F6)
-    static let roleBadgeText = Color(hex: 0x7589A2)
+    static let lensPromo = tint
+    static let lensPromoKicker = muted
+    static let lensPromoText = muted
+    static let lensIcon = blue
+    static let lensIconBackground = tintStrong
+    static let roleBadge = tint
+    static let roleBadgeText = chipText
 
-    static let fieldBorder = Color(hex: 0xD9E1D9)
-    static let fieldBackground = Color(hex: 0xFBFCFA)
-    static let fieldLabel = Color(hex: 0x8A9A91)
-    static let hint = Color(hex: 0x99A79D)
-    static let voiceBackground = Color(hex: 0xEEF1FF)
-    static let skillOption = Color(hex: 0xF4F6F3)
-    static let skillOptionText = Color(hex: 0x5D7064)
+    static let statusBackground = tint                 // .verification-status, .badge-result
+    static let statusText = Color(hex: 0x504460)
+
+    static let fieldBorder = Color(hex: 0xD8D0E0)
+    static let fieldBackground = Color(hex: 0xFDFBFE)
+    static let fieldLabel = cardLabel
+    static let hint = resultText
+    static let voiceBackground = tint
+    static let skillOption = tint
+    static let skillOptionSelected = tintStrong
+    static let skillOptionText = chipText
     static let checkText = Color(hex: 0x64746A)
-    static let subtleButton = Color(hex: 0xF0F3F0)
-    static let subtleButtonText = Color(hex: 0x586B62)
-    static let whiteButtonText = Color(hex: 0x2D4850)
-    static let focus = Color(hex: 0xE77958)
-    static let footer = Color(hex: 0xB4BEB7)
-    static let footerStar = Color(hex: 0xE49D80)
-    static let dialogDetail = Color(hex: 0xF5F7F4)
-    static let verificationBody = Color(hex: 0x66776E)   // .verification-panel p, .badge-lookup p
+    static let subtleButton = tint
+    static let subtleButtonText = blueDark
+    static let whiteButtonText = blueDark
+    static let focus = Color(hex: 0x6D509F)
+    static let footer = breadcrumb
+    static let footerStar = captionArrow
+    static let dialogDetail = quoteBackground
+    static let verificationBody = muted               // .verification-panel p, .badge-lookup p
 
-    static let peach = (background: Color(hex: 0xFAEEE8), icon: Color(hex: 0xCF8269))
-    static let lilac = (background: Color(hex: 0xEDEEFF), icon: Color(hex: 0x7E87C6))
-    static let mint = (background: Color(hex: 0xE5F1EA), icon: Color(hex: 0x6B9C7D))
+    // The web's lavender refresh paints every project icon the same (.project-icon.peach/.lilac/.mint).
+    static let peach = (background: tintStrong, icon: blue)
+    static let lilac = (background: tintStrong, icon: blue)
+    static let mint = (background: tintStrong, icon: blue)
 }
 
-// MARK: - Fonts (Manrope for headings, DM Sans for text, bundled from Google Fonts, OFL licence)
+// MARK: - Fonts (DM Serif Display for page headings, Manrope for card titles, DM Sans for text;
+// bundled from Google Fonts, OFL licence)
 
 enum VFont {
-    private static let files = ["manrope-700", "manrope-800", "dm-sans-400", "dm-sans-500", "dm-sans-700"]
+    private static let files = ["manrope-700", "manrope-800", "dm-sans-400", "dm-sans-500", "dm-sans-700",
+                                "dm-serif-display-400", "dm-serif-display-400-italic"]
 
     /// Registers the bundled .ttf files for this process. Safe to call more than once.
     static func register() {
@@ -153,10 +173,17 @@ enum VFont {
     static let textRegular = "DMSans9pt-Regular"
     static let textMedium = "DMSans9pt-Medium"
     static let textBold = "DMSans9pt-Bold"
+    static let serif = "DMSerifDisplay-Regular"
+    static let serifItalic = "DMSerifDisplay-Italic"
 }
 
 extension Font {
-    /// Manrope headings. Scales with the user's text size setting.
+    /// DM Serif Display, used by the web for page and section headings (h1/h2).
+    static func serif(_ size: CGFloat, italic: Bool = false, relativeTo style: Font.TextStyle = .title) -> Font {
+        .custom(italic ? VFont.serifItalic : VFont.serif, size: size, relativeTo: style)
+    }
+
+    /// Manrope (card titles, brand name). Scales with the user's text size setting.
     static func display(_ size: CGFloat, bold: Bool = false, relativeTo style: Font.TextStyle = .title) -> Font {
         .custom(bold ? VFont.displayBold : VFont.displayExtraBold, size: size, relativeTo: style)
     }
@@ -175,7 +202,7 @@ extension Font {
 
 // MARK: - Layout primitives
 
-/// White card with the web's 1px border and 6px corners.
+/// Warm white card with the web's 1px border, 12px corners and soft lavender shadow.
 struct CardModifier: ViewModifier {
     var background: Color = VColor.card
     var border: Color? = VColor.cardBorder
@@ -185,10 +212,11 @@ struct CardModifier: ViewModifier {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(background, in: .rect(cornerRadius: 6))
+            .background(background, in: .rect(cornerRadius: 12))
             .overlay {
-                if let border { RoundedRectangle(cornerRadius: 6).strokeBorder(border, lineWidth: 1) }
+                if let border { RoundedRectangle(cornerRadius: 12).strokeBorder(border, lineWidth: 1) }
             }
+            .shadow(color: border == nil ? .clear : VColor.shadow.opacity(0.045), radius: 9, y: 5)
     }
 }
 
@@ -228,7 +256,8 @@ struct PageHeading: View {
         VStack(alignment: .leading, spacing: 9) {
             Overline(text: overline, dot: true)
             (Text(title).foregroundStyle(VColor.ink) + Text(accent).foregroundStyle(VColor.spark))
-                .font(.display(30, relativeTo: .largeTitle))
+                .font(.serif(34, relativeTo: .largeTitle))
+                .tracking(-0.8)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             Text(subtitle)
@@ -240,7 +269,7 @@ struct PageHeading: View {
                     .tracking(1)
                     .foregroundStyle(VColor.roleBadgeText)
                     .padding(9)
-                    .background(VColor.roleBadge, in: .rect(cornerRadius: 4))
+                    .background(VColor.roleBadge, in: .rect(cornerRadius: 8))
                     .padding(.top, 4)
             }
         }
@@ -280,7 +309,7 @@ struct VButtonStyle: ButtonStyle {
             .padding(.horizontal, 18)
             .frame(minHeight: 48)
             .frame(maxWidth: fullWidth ? .infinity : nil)
-            .background(background(pressed: configuration.isPressed), in: .rect(cornerRadius: 5))
+            .background(background(pressed: configuration.isPressed), in: .rect(cornerRadius: 8))
             .opacity(configuration.isPressed ? 0.92 : 1)
     }
 
@@ -295,7 +324,7 @@ struct VButtonStyle: ButtonStyle {
     private func background(pressed: Bool) -> Color {
         switch kind {
         case .primary: pressed ? VColor.blueDark : VColor.blue
-        case .white: .white
+        case .white: VColor.surface
         case .subtle: VColor.subtleButton
         }
     }
@@ -333,7 +362,7 @@ struct SkillChip: View {
             .foregroundStyle(VColor.chipText)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(VColor.chipBackground, in: .rect(cornerRadius: 3))
+            .background(VColor.chipBackground, in: .rect(cornerRadius: 5))
     }
 }
 
@@ -349,7 +378,7 @@ struct VerifiedBadge: View {
     }
 }
 
-/// The peach award square next to credentials.
+/// The award square next to credentials.
 struct BadgeSymbol: View {
     var body: some View {
         Image(systemName: "rosette")
@@ -372,12 +401,12 @@ struct DemoNotice: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VColor.noticeBackground, in: .rect(cornerRadius: 4))
-        .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(VColor.noticeBorder) }
+        .background(VColor.noticeBackground, in: .rect(cornerRadius: 9))
+        .overlay { RoundedRectangle(cornerRadius: 9).strokeBorder(VColor.noticeBorder) }
     }
 }
 
-/// Blockquote with the green left rule, as on credential cards.
+/// Blockquote with the lavender left rule, as on credential cards.
 struct QuoteBlock: View {
     let text: String
     var attribution: String? = nil
@@ -433,15 +462,15 @@ struct FlowLayout: Layout {
     }
 }
 
-/// Standard text field look from the web form (pale fill, thin green-grey border).
+/// Standard text field look from the web form (pale fill, thin lavender-grey border).
 struct VFieldModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(.text(17))
             .foregroundStyle(VColor.ink)
             .padding(12)
-            .background(VColor.fieldBackground, in: .rect(cornerRadius: 4))
-            .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(VColor.fieldBorder) }
+            .background(VColor.fieldBackground, in: .rect(cornerRadius: 8))
+            .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(VColor.fieldBorder) }
     }
 }
 

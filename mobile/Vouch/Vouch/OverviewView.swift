@@ -14,22 +14,27 @@ struct OverviewView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Overline(text: "Your impact, in motion", dot: true)
                 (Text("Good \(greeting), Priya ").foregroundStyle(VColor.ink) + Text("✳").foregroundStyle(VColor.spark))
-                    .font(.display(30, relativeTo: .largeTitle))
+                    .font(.serif(34, relativeTo: .largeTitle))
+                    .tracking(-0.8)
                     .accessibilityAddTraits(.isHeader)
                     .padding(.top, 10)
                 Text("Here's what your good work is building.")
                     .font(.text(15)).foregroundStyle(VColor.subtitle).padding(.top, 7)
 
-                Button("Explore projects") { selection = .projects }
-                    .buttonStyle(.vPrimaryWide)
-                    .padding(.top, 22)
+                Button { selection = .projects } label: {
+                    Label("Explore projects", systemImage: "arrow.up.right").labelStyle(TrailingIconLabel())
+                }
+                .buttonStyle(.vPrimaryWide)
+                .padding(.top, 22)
+
+                JourneyCard(selection: $selection).padding(.top, 24)
 
                 if let error = store.startupError {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .font(.text(13)).foregroundStyle(VColor.invalidText).padding(.top, 12)
                 }
 
-                FeaturePanel(selection: $selection).padding(.top, 28)
+                FeaturePanel(selection: $selection).padding(.top, 24)
 
                 SectionTitle(overline: "The work behind the proof", title: "Make your next move", spark: true,
                              link: "View all projects") { selection = .projects }
@@ -84,16 +89,18 @@ private struct FeaturePanel: View {
                 Label("A LITTLE WORK. A BIGGER STORY.", systemImage: "sparkles")
                     .font(.text(10, weight: .bold, relativeTo: .caption2)).tracking(1.2)
                     .foregroundStyle(VColor.heroTag)
-                (Text("Your skills deserve to ").foregroundStyle(VColor.heroTitle)
-                 + Text("be seen.").foregroundStyle(VColor.heroEmphasis))
-                    .font(.display(30, relativeTo: .largeTitle))
+                (Text("Your skills deserve to ").font(.serif(34, relativeTo: .largeTitle)).foregroundStyle(VColor.heroTitle)
+                 + Text("be seen.").font(.serif(34, italic: true, relativeTo: .largeTitle)).foregroundStyle(VColor.heroEmphasis))
+                    .tracking(-0.6)
                     .padding(.top, 17)
                 Text("The things you do for your community say a lot about what you can do next.")
                     .font(.text(15)).foregroundStyle(VColor.heroText).lineSpacing(3)
                     .padding(.top, 11)
-                Button("See your credentials") { selection = .credentials }
-                    .buttonStyle(.vWhite)
-                    .padding(.top, 20)
+                Button { selection = .credentials } label: {
+                    Label("See your credentials", systemImage: "arrow.up.right").labelStyle(TrailingIconLabel())
+                }
+                .buttonStyle(.vWhite)
+                .padding(.top, 20)
             }
             .padding(.horizontal, 25)
             .padding(.vertical, 29)
@@ -114,12 +121,13 @@ private struct FeaturePanel: View {
                     Image(systemName: "arrow.up.right").font(.system(size: 13, weight: .bold)).foregroundStyle(VColor.captionArrow)
                 }
                 .padding(12)
-                .background(.white, in: .rect(cornerRadius: 4))
+                .background(VColor.surface, in: .rect(cornerRadius: 7))
                 .padding(15)
             }
         }
         .background(VColor.heroBackground)
-        .clipShape(.rect(cornerRadius: 6))
+        .clipShape(.rect(cornerRadius: 14))
+        .shadow(color: VColor.shadow.opacity(0.1), radius: 18, y: 14)
     }
 }
 
@@ -135,11 +143,16 @@ struct SectionTitle: View {
             VStack(alignment: .leading, spacing: 7) {
                 Overline(text: overline)
                 (Text(title).foregroundStyle(VColor.ink) + Text(spark ? " ✳" : "").foregroundStyle(VColor.spark))
-                    .font(.display(21, relativeTo: .title2))
+                    .font(.serif(25, relativeTo: .title2))
                     .accessibilityAddTraits(.isHeader)
             }
             Spacer()
-            if let link { Button(link, action: action).buttonStyle(.vLink) }
+            if let link {
+                Button(action: action) {
+                    Label(link, systemImage: "arrow.right").labelStyle(TrailingIconLabel())
+                }
+                .buttonStyle(.vLink)
+            }
         }
         .padding(.bottom, 15)
     }
@@ -151,7 +164,7 @@ private struct HowStrip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 12) {
-                Image(systemName: "heart.text.square")
+                Image(systemName: "hand.raised")
                     .font(.system(size: 17)).foregroundStyle(VColor.howSymbol)
                     .frame(width: 36, height: 36).background(VColor.howSymbolBackground, in: .circle)
                     .accessibilityHidden(true)
@@ -160,13 +173,17 @@ private struct HowStrip: View {
                     Text("Every story starts with someone you helped.").font(.text(13)).foregroundStyle(VColor.howText)
                 }
             }
-            Button("Give a vouch", action: action).buttonStyle(.vLink).padding(.leading, 48)
+            Button(action: action) {
+                Label("Give a vouch", systemImage: "arrow.right").labelStyle(TrailingIconLabel())
+            }
+            .buttonStyle(.vLink)
+            .padding(.leading, 48)
         }
         .vCard(background: VColor.howBackground, border: VColor.howBorder, padding: 15)
     }
 }
 
-/// Dark navy "YOUR IMPACT" panel.
+/// Soft lavender "YOUR IMPACT" panel.
 private struct ImpactPanel: View {
     let count: Int
     var body: some View {
@@ -177,7 +194,7 @@ private struct ImpactPanel: View {
                 Text("✳").font(.system(size: 21)).foregroundStyle(VColor.impactSpark)
             }
             HStack(spacing: 13) {
-                Text("\(count)").font(.display(52, bold: true, relativeTo: .largeTitle))
+                Text("\(count)").font(.serif(56, relativeTo: .largeTitle)).foregroundStyle(VColor.ink)
                 Text(count == 1 ? "signed\ncredential" : "signed\ncredentials")
                     .font(.text(13)).foregroundStyle(VColor.impactSub).lineSpacing(2)
             }
@@ -186,17 +203,20 @@ private struct ImpactPanel: View {
             Text("Every credential tells the story behind a skill.")
                 .font(.text(13)).foregroundStyle(VColor.impactText).padding(.top, 10)
             Rectangle().fill(VColor.impactRule).frame(height: 1).padding(.top, 19)
-            detail("Signature checked", "Ed25519").padding(.top, 13)
-            detail("Grounded in", "Submitted words").padding(.top, 10)
+            detail("Signature checked", "Ed25519", icon: "checkmark.shield").padding(.top, 13)
+            detail("Grounded in", "Submitted words", icon: "quote.opening").padding(.top, 10)
         }
-        .foregroundStyle(.white)
-        .padding(22)
-        .background(VColor.impactBackground, in: .rect(cornerRadius: 6))
+        .foregroundStyle(VColor.ink)
+        .padding(25)
+        .background(LinearGradient(colors: [VColor.impactTop, VColor.impactBottom],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: .rect(cornerRadius: 14))
+        .shadow(color: VColor.shadow.opacity(0.08), radius: 16, y: 14)
     }
 
-    private func detail(_ label: String, _ value: String) -> some View {
+    private func detail(_ label: String, _ value: String, icon: String) -> some View {
         HStack {
-            Label(label, systemImage: "checkmark.circle")
+            Label(label, systemImage: icon)
                 .foregroundStyle(VColor.impactDetail)
                 .labelStyle(TintedIconLabel(iconColor: VColor.impactCheck))
             Spacer()
@@ -254,7 +274,7 @@ private struct LensPromo: View {
     let action: () -> Void
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "eye")
+            Image(systemName: "text.viewfinder")
                 .font(.system(size: 15)).foregroundStyle(VColor.lensIcon)
                 .frame(width: 34, height: 34).background(VColor.lensIconBackground, in: .rect(cornerRadius: 5))
                 .accessibilityHidden(true)
@@ -262,9 +282,64 @@ private struct LensPromo: View {
                 Text("A DIFFERENT KIND OF MATCH").font(.text(10, weight: .bold, relativeTo: .caption2)).tracking(1.2).foregroundStyle(VColor.lensPromoKicker)
                 Text("See it through an employer's eyes.").font(.display(16, bold: true, relativeTo: .headline)).foregroundStyle(VColor.ink).padding(.top, 8)
                 Text("Turn a job description into a clear evidence map.").font(.text(13)).foregroundStyle(VColor.lensPromoText).padding(.top, 5)
-                Button("Try the employer lens", action: action).buttonStyle(.vLink)
+                Button(action: action) {
+                    Label("Try the employer lens", systemImage: "arrow.right").labelStyle(TrailingIconLabel())
+                }
+                .buttonStyle(.vLink)
             }
         }
-        .vCard(background: VColor.lensPromo, border: nil)
+        .vCard(background: VColor.lensPromo, border: VColor.line)
+    }
+}
+
+/// "A MORE HUMAN KIND OF PROOF" card with the three steps (index.html .journey).
+private struct JourneyCard: View {
+    @Binding var selection: AppTab
+
+    private let steps: [(number: String, title: String, detail: String, tab: AppTab)] = [
+        ("01", "Find a project", "Explore example opportunities", .projects),
+        ("02", "Share the story", "Create a demo vouch", .vouch),
+        ("03", "See the connection", "Explore the employer lens", .lens),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Overline(text: "A more human kind of proof")
+            Text("From good work to new opportunities.")
+                .font(.serif(25, relativeTo: .title2))
+                .foregroundStyle(VColor.ink)
+                .padding(.top, 7)
+                .padding(.bottom, 12)
+                .accessibilityAddTraits(.isHeader)
+            ForEach(steps, id: \.number) { step in
+                Button { selection = step.tab } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(step.number)
+                            .font(.display(12, bold: true, relativeTo: .caption))
+                            .foregroundStyle(VColor.journeyNumber)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(step.title).font(.display(15, bold: true, relativeTo: .headline)).foregroundStyle(VColor.ink)
+                            Text(step.detail).font(.text(13)).foregroundStyle(VColor.muted)
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(VColor.journeyNumber)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
+                    .overlay(alignment: .top) { Rectangle().fill(VColor.line).frame(height: 1) }
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(step.detail)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(VColor.surface, in: .rect(cornerRadius: 14))
+        .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(VColor.line) }
+        .shadow(color: VColor.shadow.opacity(0.05), radius: 12, y: 8)
     }
 }

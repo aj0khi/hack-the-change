@@ -1,7 +1,8 @@
 // LensView.swift — mirrors the web "Employer lens" (index.html #lens, app.js, lens/lens.css).
 // 01 takes a full job posting (typed, a live Calgary posting, or the example).
-// 02 shows the evidence map from the website's AI lens, or the offline keyword lens as a fallback,
-//    with an Employer / Student switch; Student view suggests catalog projects for gaps.
+// 02 shows the evidence map from the website's AI lens, or the offline keyword lens as a fallback.
+//    Student view instead shows the skill pathway (lens/student-pathway.mjs): evidence you have,
+//    skills to explore, and fictional practice projects.
 // 03 looks up a public Badgr badge through the website's server.
 
 import Foundation
@@ -14,6 +15,7 @@ struct LensView: View {
     @Environment(VouchStore.self) private var store
     @Binding var selection: AppTab
     @Binding var vouchTask: String
+    @Binding var focusedProject: String?
 
     @State private var posting = ""
     @State private var outcome: LensOutcome?
@@ -21,16 +23,17 @@ struct LensView: View {
     @State private var emptyMessage: (title: String, text: String)?
     @State private var audience: LensAudience = .employer
     @State private var jobs: [JobPosting] = []
-    @State private var demand: SkillDemand?
     @State private var selectedJobID = ""
+    @State private var analyzedPosting = ""     // posting text the current result belongs to
+    @State private var requestID = 0            // newer requests win, like lensRequest in app.js
 
     private var selectedJob: JobPosting? { jobs.first { $0.id == selectedJobID } }
 
     var body: some View {
         VPage {
             PageHeading(overline: "The employer lens", title: "See the proof behind the potential",
-                        subtitle: "Connect job requirements to signed evidence, one line at a time.",
-                        badge: ("Employer view", "viewfinder"))
+                        subtitle: "Compare a job with signed demo evidence and explore ways to practise skills you haven't documented yet.",
+                        badge: ("Job & skills lens", "text.viewfinder"))
 
             opportunityCard
                 .padding(.top, 28)
@@ -50,7 +53,7 @@ struct LensView: View {
         VStack(alignment: .leading, spacing: 0) {
             CardLabel(left: "01 / The opportunity")
             Text("What are you looking for?")
-                .font(.display(22, relativeTo: .title2)).foregroundStyle(VColor.ink).padding(.top, 22)
+                .font(.serif(27, relativeTo: .title2)).foregroundStyle(VColor.ink).padding(.top, 22)
                 .accessibilityAddTraits(.isHeader)
             Text("Paste your full job posting, pick a live Calgary posting, or use the example.")
                 .font(.text(14)).foregroundStyle(LensColor.secondary).padding(.top, 7).padding(.bottom, 22)
@@ -65,6 +68,7 @@ struct LensView: View {
                 .lineLimit(7...14)
                 .vField()
                 .accessibilityLabel("Job posting")
+                .onChange(of: posting) { postingEdited() }
 
             HStack(spacing: 8) {
                 Button { Task { await analyze() } } label: {
@@ -73,17 +77,15 @@ struct LensView: View {
                 .buttonStyle(.vPrimary)
                 .disabled(isLoading)
                 Button("Use example") {
-                    posting = DemoData.exampleJob
                     selectedJobID = ""
-                    Task { await analyze() }
+                    startAnalysis(of: DemoData.exampleJob)
                 }
                 .buttonStyle(.vSubtle)
                 .disabled(isLoading)
             }
             .padding(.top, 14)
 
-            Label(outcome?.mode == .offline ? EmployerLens.disclaimerOffline : EmployerLens.disclaimerAI,
-                  systemImage: "info.circle")
+            Label(disclaimer, systemImage: "info.circle")
                 .font(.text(12)).foregroundStyle(LensColor.secondary).padding(.top, 16)
         }
         .vCard(border: VColor.line, padding: 19)
@@ -115,8 +117,7 @@ struct LensView: View {
             .accessibilityLabel("Pick a real Calgary job, \(selectedJob?.title ?? "none chosen")")
             .onChange(of: selectedJobID) {
                 guard let job = selectedJob else { return }
-                posting = job.postingText
-                Task { await analyze() }
+                startAnalysis(of: job.postingText)
             }
             if let job = selectedJob {
                 VStack(alignment: .leading, spacing: 4) {
@@ -148,15 +149,15 @@ struct LensView: View {
             if isLoading {
                 LensPlaceholder(symbol: nil, title: "Reading the posting…",
                                 text: "Extracting requirements and checking every quote against signed credentials.")
+            } else if let outcome, audience == .student {
+                PathwayView(skills: StudentPathway.build(posting: outcome.input, credentials: store.verified)) { id in
+                    focusedProject = id
+                    selection = .projects
+                }
             } else if let outcome {
                 VStack(alignment: .leading, spacing: 0) {
                     LensSummary(outcome: outcome).padding(.top, 20).padding(.bottom, 4)
-                    ForEach(outcome.rows) { row in
-                        LensRowView(row: row, audience: audience, demand: demand) { title in
-                            vouchTask = title
-                            selection = .vouch
-                        }
-                    }
+                    ForEach(outcome.rows) { row in LensRowView(row: row) }
                     if outcome.mode == .ai { RejectedList(rejected: outcome.rejected) }
                 }
             } else if let emptyMessage {
@@ -175,11 +176,37 @@ struct LensView: View {
 
     // MARK: Actions
 
+    private var disclaimer: String {
+        if audience == .student { return EmployerLens.disclaimerStudent }
+        return outcome?.mode == .offline ? EmployerLens.disclaimerOffline : EmployerLens.disclaimerAI
+    }
+
+    /// Fills the box (example or live job) and analyses it right away.
+    private func startAnalysis(of text: String) {
+        analyzedPosting = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        posting = text
+        Task { await analyze() }
+    }
+
+    /// Typing in the box clears the old result, like the "input" listener in app.js.
+    private func postingEdited() {
+        guard posting.trimmingCharacters(in: .whitespacesAndNewlines) != analyzedPosting else { return }
+        requestID += 1
+        isLoading = false
+        guard outcome != nil || emptyMessage != nil else { return }
+        outcome = nil
+        emptyMessage = ("Posting changed.", "Select Find evidence to update your results.")
+    }
+
     /// Port of analyzeJob() in app.js: try the AI lens, fall back to keyword rules.
     private func analyze() async {
+        requestID += 1
+        let request = requestID
         let input = posting.trimmingCharacters(in: .whitespacesAndNewlines)
+        analyzedPosting = input
+        outcome = nil
         guard !input.isEmpty else {
-            outcome = nil
+            isLoading = false
             emptyMessage = ("Add a job posting first.", "Paste the whole posting, or pick an example.")
             return
         }
@@ -189,8 +216,10 @@ struct LensView: View {
         if let submission = store.lensSubmission() {
             aiOutcome = try? await LensAPI.analyze(posting: input, submission: submission, credentials: credentials)
         }
+        guard request == requestID else { return }   // the posting changed while we waited
         let result = aiOutcome ?? EmployerLens.offline(posting: input, credentials: credentials)
         outcome = result
+        emptyMessage = nil
         isLoading = false
         let message = result.mode == .ai
             ? "\(result.matchedCount) of \(result.rows.count) requirements have verified evidence."
@@ -201,7 +230,6 @@ struct LensView: View {
     private func loadJobs() async {
         guard jobs.isEmpty, let response = await LensAPI.jobs() else { return }
         jobs = response.jobs ?? []
-        demand = (response.demand?.total ?? 0) > 0 ? response.demand : nil
     }
 }
 
@@ -215,9 +243,6 @@ private enum LensColor {
     static let summaryOffline = (background: Color(hex: 0xFDF3E3), text: Color(hex: 0x6B4A12))
     static let actionTag = Color(hex: 0x1F4A8A)
     static let praiseTag = Color(hex: 0x5C3487)
-    static let suggestionBackground = Color(hex: 0xF3F6FD)
-    static let suggestionBorder = Color(hex: 0xDBE3F7)
-    static let suggestionTitle = Color(hex: 0x1F3A8A)
     static let rejectedRule = Color(hex: 0xE4B4AD)
     static let rejectedReason = Color(hex: 0x9A3428)
     static let toggleBorder = Color(hex: 0xC9D2CB)
@@ -269,7 +294,7 @@ private struct LensPlaceholder: View {
                 }
             }
             .frame(width: 54, height: 54)
-            .background(Color(hex: 0xEDF0FD), in: .circle)
+            .background(VColor.tint, in: .circle)
             .padding(.bottom, 9)
             .accessibilityHidden(true)
             Text(title).font(.display(18, bold: true, relativeTo: .headline)).foregroundStyle(VColor.ink)
@@ -324,9 +349,6 @@ private struct LensSummary: View {
 private struct LensRowView: View {
     @Environment(VouchStore.self) private var store
     let row: LensRow
-    let audience: LensAudience
-    let demand: SkillDemand?
-    let startProject: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -343,10 +365,7 @@ private struct LensRowView: View {
                     if let kind = row.kind, !kind.isEmpty { KindTag(text: kind) }
                     if row.matches.isEmpty {
                         Text("No verified evidence yet. This is not a judgment of ability.")
-                            .font(.text(13)).foregroundStyle(LensColor.secondary)
-                        if audience == .student {
-                            SuggestionBox(row: row, demand: demand, startProject: startProject)
-                        }
+                            .font(.text(13)).foregroundStyle(VColor.resultText)
                     }
                     ForEach(row.matches, id: \.self) { match in
                         EvidenceView(match: match, credential: store.verified.first { $0.id == match.credentialID })
@@ -365,7 +384,7 @@ private struct EvidenceView: View {
 
     private var quoteLine: Text {
         guard let type = match.evidenceType else {
-            return Text("\(match.label) · “\(match.quote)”").foregroundStyle(LensColor.secondary)
+            return Text("\(match.label) · “\(match.quote)”").foregroundStyle(VColor.resultText)
         }
         let isAction = type == "action"
         let tag = Text(isAction ? "WHAT THEY DID  " : "PRAISE  ")
@@ -404,73 +423,6 @@ private struct KindTag: View {
             .foregroundStyle(LensColor.secondary)
             .padding(.horizontal, 6).padding(.vertical, 1)
             .background(VColor.gapBackground, in: .rect(cornerRadius: 3))
-    }
-}
-
-/// Student view: catalog projects that could build a missing skill (suggestionMarkup in app.js).
-private struct SuggestionBox: View {
-    let row: LensRow
-    let demand: SkillDemand?
-    let startProject: (String) -> Void
-
-    var body: some View {
-        if row.kind == "credential" || row.kind == "other" {
-            muted("This needs an official credential or availability; community projects can't prove it.")
-        } else if row.suggestions.isEmpty {
-            // Offline lines are raw sentences (headings, boilerplate), so stay quiet rather than add noise.
-            if !row.keywordBased { muted("No community project in our catalog builds this yet.") }
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 6) {
-                    Image(systemName: "leaf").font(.system(size: 13)).accessibilityHidden(true)
-                    Text("Projects that could build this").font(.text(13, weight: .bold, relativeTo: .footnote))
-                    if row.keywordBased {
-                        Text("(keyword match)").font(.text(13, relativeTo: .footnote)).foregroundStyle(LensColor.secondary)
-                    }
-                }
-                .foregroundStyle(LensColor.suggestionTitle)
-                .padding(.bottom, 4)
-                ForEach(row.suggestions, id: \.self) { suggestion in
-                    suggestionView(suggestion)
-                }
-            }
-            .padding(.horizontal, 14).padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(LensColor.suggestionBackground, in: .rect(cornerRadius: 6))
-            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(LensColor.suggestionBorder) }
-            .padding(.top, 4)
-        }
-    }
-
-    private func suggestionView(_ suggestion: ProjectSuggestion) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Rectangle().fill(LensColor.suggestionBorder).frame(height: 1).padding(.bottom, 6)
-            Text(suggestion.title).font(.text(14, weight: .bold)).foregroundStyle(VColor.ink)
-            Text("\(suggestion.organization) · \(suggestion.time.uppercased())")
-                .font(.text(12, relativeTo: .caption)).foregroundStyle(LensColor.secondary)
-            if !suggestion.why.isEmpty {
-                Text(suggestion.why).font(.text(13)).foregroundStyle(LensColor.body)
-            }
-            if let line = EmployerLens.demandLine(for: suggestion.skills, demand: demand) {
-                Text(line).font(.text(12, weight: .bold, relativeTo: .caption)).foregroundStyle(LensColor.summaryGreen.text)
-            }
-            Button { startProject(suggestion.title) } label: {
-                Label("Start this project", systemImage: "arrow.right").labelStyle(TrailingIconLabel())
-            }
-            .buttonStyle(.vSubtle)
-            .padding(.top, 4)
-        }
-        .padding(.top, 6)
-    }
-
-    private func muted(_ text: String) -> some View {
-        Text(text)
-            .font(.text(13)).foregroundStyle(LensColor.body)
-            .padding(.horizontal, 14).padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(VColor.paper, in: .rect(cornerRadius: 6))
-            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(VColor.line) }
-            .padding(.top, 4)
     }
 }
 
@@ -518,5 +470,186 @@ private struct RejectedItem: View {
             .padding(.vertical, 4)
         }
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+// MARK: - Student view: skill pathway (renderStudentPathway in app.js, .pathway-* in lens/lens.css)
+
+private struct PathwayView: View {
+    let skills: [PathwaySkill]
+    let viewProject: (String) -> Void
+
+    private var supported: [PathwaySkill] { skills.filter { !$0.evidence.isEmpty } }
+    private var gaps: [PathwaySkill] { skills.filter { $0.evidence.isEmpty } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Your skill pathway").font(.text(16, weight: .bold))
+                Text("We found \(skills.count) skill \(skills.count == 1 ? "hint" : "hints") in this text: \(supported.count) with related demo evidence and \(gaps.count) to explore. Keywords can miss context or requirements.")
+                    .font(.text(14)).foregroundStyle(PathwayColor.secondary)
+            }
+            .foregroundStyle(PathwayColor.introText)
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(PathwayColor.introBackground, in: .rect(cornerRadius: 12))
+            .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(PathwayColor.introBorder) }
+            .padding(.top, 20)
+            .accessibilityElement(children: .combine)
+
+            if skills.isEmpty {
+                note("No recognizable skill keywords found. Try the full job posting or review its requirements yourself.")
+                    .padding(.top, 16)
+            } else {
+                section("Evidence you have", count: supported.count)
+                if supported.isEmpty {
+                    note("No related signed demo evidence found for these skills yet.")
+                }
+                ForEach(supported) { EvidenceSkillCard(skill: $0) }
+
+                section("Skills to explore", count: gaps.count)
+                if gaps.isEmpty {
+                    note("No evidence gaps among the skills we recognized. Review the full posting for anything missed.")
+                }
+                ForEach(gaps) { GapSkillCard(skill: $0, viewProject: viewProject) }
+            }
+
+            Rectangle().fill(VColor.line).frame(height: 1).padding(.top, 22)
+            note("Projects are fictional practice ideas, not live opportunities. Only create a demo vouch for work you want to simulate; completing a project here does not create evidence or guarantee a job.")
+                .padding(.top, 14)
+        }
+        .onAppear {
+            UIAccessibility.post(notification: .announcement,
+                                 argument: "Student pathway updated: \(supported.count) skills with related evidence and \(gaps.count) to explore.")
+        }
+    }
+
+    private func section(_ title: String, count: Int) -> some View {
+        HStack {
+            Text(title).font(.display(16, bold: true, relativeTo: .headline)).foregroundStyle(VColor.ink)
+            Spacer()
+            Text("\(count)")
+                .font(.text(13, weight: .bold, relativeTo: .footnote))
+                .foregroundStyle(PathwayColor.countText)
+                .padding(.horizontal, 9).padding(.vertical, 3)
+                .background(PathwayColor.countBackground, in: .capsule)
+        }
+        .padding(.top, 22)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private func note(_ text: String) -> some View {
+        Text(text).font(.text(14)).foregroundStyle(PathwayColor.secondary)
+    }
+}
+
+private enum PathwayColor {
+    static let introBackground = Color(hex: 0xF5F1FA)
+    static let introBorder = Color(hex: 0xDED5EB)
+    static let introText = Color(hex: 0x393047)
+    static let secondary = Color(hex: 0x655B70)
+    static let countBackground = Color(hex: 0xEEE8F5)
+    static let countText = Color(hex: 0x51425E)
+    static let projectsBackground = Color(hex: 0xF8F5FB)
+    static let projectRule = Color(hex: 0xE6DEED)
+}
+
+/// White card used for both pathway lists.
+private struct PathwayCard<Content: View>: View {
+    let name: String
+    let context: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(name).font(.text(15, weight: .bold)).foregroundStyle(VColor.ink)
+                .accessibilityAddTraits(.isHeader)
+            Text("Posting mentions: “\(context)”")
+                .font(.text(14)).foregroundStyle(PathwayColor.secondary).padding(.top, 6)
+            content
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white, in: .rect(cornerRadius: 12))
+        .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(VColor.line) }
+        .padding(.top, 10)
+    }
+}
+
+private struct EvidenceSkillCard: View {
+    @Environment(VouchStore.self) private var store
+    let skill: PathwaySkill
+
+    var body: some View {
+        PathwayCard(name: skill.name, context: skill.context) {
+            ForEach(skill.evidence, id: \.self) { item in
+                Text("Demo evidence · \(item.skill): “\(item.quote)”")
+                    .font(.text(14)).foregroundStyle(VColor.resultText).padding(.top, 10)
+                if let credential = store.verified.first(where: { $0.id == item.credentialID }) {
+                    NavigationLink(value: credential) {
+                        Label("View signed evidence", systemImage: "arrow.up.right")
+                            .labelStyle(TrailingIconLabel())
+                            .font(.text(13, weight: .bold, relativeTo: .footnote))
+                            .foregroundStyle(VColor.blue)
+                            .frame(minHeight: 44)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct GapSkillCard: View {
+    let skill: PathwaySkill
+    let viewProject: (String) -> Void
+    @State private var showMore = false
+
+    var body: some View {
+        PathwayCard(name: skill.name, context: skill.context) {
+            Text("No matching demo evidence yet. This does not mean you lack this skill.")
+                .font(.text(14)).foregroundStyle(VColor.resultText).padding(.top, 10)
+            if skill.projects.isEmpty {
+                Text("No related demo project yet. Consider another way to practise or document this skill.")
+                    .font(.text(14)).foregroundStyle(VColor.resultText).padding(.top, 8)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Fictional practice ideas").font(.text(14, weight: .bold)).foregroundStyle(PathwayColor.countText)
+                    ForEach(skill.projects.prefix(2)) { project(of: $0) }
+                    if skill.projects.count > 2 {
+                        let extra = skill.projects.count - 2
+                        DisclosureGroup(isExpanded: $showMore) {
+                            ForEach(skill.projects.dropFirst(2)) { project(of: $0) }
+                        } label: {
+                            Text("Show \(extra) more \(extra == 1 ? "idea" : "ideas")")
+                                .font(.text(14, weight: .bold)).foregroundStyle(PathwayColor.countText)
+                        }
+                        .tint(PathwayColor.countText)
+                        .padding(.top, 10)
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(PathwayColor.projectsBackground, in: .rect(cornerRadius: 9))
+                .padding(.top, 12)
+            }
+        }
+    }
+
+    private func project(of project: CommunityProject) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(project.title).font(.text(14, weight: .bold)).foregroundStyle(PathwayColor.countText)
+            Text("\(project.organization) · \(project.time)").font(.text(13)).foregroundStyle(PathwayColor.secondary)
+            Text(project.description).font(.text(14)).foregroundStyle(PathwayColor.secondary).padding(.top, 2)
+            Button { viewProject(project.id) } label: {
+                Label("View project", systemImage: "arrow.up.right").labelStyle(TrailingIconLabel())
+            }
+            .buttonStyle(.vLink)
+            .accessibilityLabel("View project: \(project.title)")
+        }
+        .padding(.top, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .top) { Rectangle().fill(PathwayColor.projectRule).frame(height: 1) }
+        .padding(.top, 10)
     }
 }

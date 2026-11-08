@@ -1,6 +1,7 @@
 // ProjectsView.swift — the web "Explore projects" section.
 
 import SwiftUI
+import UIKit
 
 struct ProjectCard: View {
     let project: CommunityProject
@@ -20,7 +21,7 @@ struct ProjectCard: View {
                 .font(.system(size: 18))
                 .foregroundStyle(colors.icon)
                 .frame(width: 44, height: 44)
-                .background(colors.background, in: .rect(cornerRadius: 6))
+                .background(colors.background, in: .rect(cornerRadius: 8))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 Text("\(project.organization) · \(project.time)".uppercased())
@@ -41,7 +42,8 @@ struct ProjectCard: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(VColor.arrowIcon)
                         .frame(width: 44, height: 44)
-                        .overlay { RoundedRectangle(cornerRadius: 5).strokeBorder(VColor.arrowBorder) }
+                        .background(.white, in: .rect(cornerRadius: 8))
+                        .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(VColor.arrowBorder) }
                 }
                 .accessibilityLabel("Give a vouch for \(project.title)")
             }
@@ -53,31 +55,51 @@ struct ProjectCard: View {
 struct ProjectsView: View {
     @Binding var selection: AppTab
     @Binding var vouchTask: String
+    /// Set by the lens's student pathway ("View project") to scroll to one card, like the web.
+    @Binding var focusedProject: String?
 
     var body: some View {
-        VPage {
-            PageHeading(overline: "Good work starts here", title: "Find your next project",
-                        subtitle: "Small projects, meaningful impact, skills worth sharing.")
-            HStack {
-                Label("CALGARY COMMUNITY", systemImage: "mappin")
-                Spacer()
-                Label("EXAMPLE OPPORTUNITIES", systemImage: "sparkles")
-            }
-            .font(.text(10, weight: .bold, relativeTo: .caption2)).tracking(1)
-            .foregroundStyle(Color(hex: 0x9CA9A2))
-            .padding(.top, 28).padding(.bottom, 13)
-            VStack(spacing: 12) {
-                ForEach(DemoData.projects) { project in
-                    ProjectCard(project: project) {
-                        vouchTask = project.title
-                        selection = .vouch
+        ScrollViewReader { proxy in
+            VPage {
+                PageHeading(overline: "Good work starts here", title: "Find your next project",
+                            subtitle: "Small projects, meaningful impact, skills worth sharing.")
+                HStack {
+                    Label("CALGARY COMMUNITY", systemImage: "mappin")
+                    Spacer()
+                    Text("EXAMPLE OPPORTUNITIES")
+                }
+                .font(.text(10, weight: .bold, relativeTo: .caption2)).tracking(1)
+                .foregroundStyle(VColor.overline)
+                .padding(.top, 28).padding(.bottom, 13)
+                VStack(spacing: 12) {
+                    ForEach(DemoData.projects) { project in
+                        ProjectCard(project: project) {
+                            vouchTask = project.title
+                            selection = .vouch
+                        }
+                        .overlay {
+                            if focusedProject == project.id {
+                                RoundedRectangle(cornerRadius: 12).strokeBorder(VColor.focus, lineWidth: 3)
+                            }
+                        }
+                        .id(project.id)
                     }
                 }
+                Label("These opportunities are illustrative, not live listings or partner requests.", systemImage: "info.circle")
+                    .font(.text(13)).foregroundStyle(VColor.noticeText)
+                    .padding(13)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VColor.tint, in: .rect(cornerRadius: 5))
+                    .padding(.top, 18)
             }
-            Text("These opportunities are illustrative, not live listings or partner requests.")
-                .font(.text(13)).foregroundStyle(VColor.noticeText)
-                .vCard(background: VColor.howBackground, border: nil, padding: 16)
-                .padding(.top, 18)
+            .task(id: focusedProject) {
+                guard let id = focusedProject else { return }
+                try? await Task.sleep(for: .milliseconds(150))   // let the cards lay out first
+                withAnimation { proxy.scrollTo(id, anchor: .center) }
+                if let title = DemoData.project(id: id)?.title {
+                    UIAccessibility.post(notification: .announcement, argument: title)
+                }
+            }
         }
     }
 }
