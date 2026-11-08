@@ -12,11 +12,24 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap"
       rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="map/explore-map.css" />
     <link rel="stylesheet" href="lens/lens.css" />
     <script
       defer
       src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"
+    ></script>
+    <script
+      defer
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
     ></script>
     <script defer src="/vendor/auth0.js"></script>
     <script type="module" src="app.js"></script>
@@ -259,15 +272,97 @@
                 <p>Small projects, meaningful impact, skills worth sharing.</p>
               </div>
             </div>
-            <div class="section-intro">
+            <div class="section-intro explore-intro">
               <span><i data-lucide="map-pin"></i> CALGARY COMMUNITY</span
               ><span>EXAMPLE OPPORTUNITIES</span>
+              <div
+                class="skill-filters"
+                id="skill-filters"
+                role="group"
+                aria-label="Filter projects by skill"
+              ></div>
             </div>
+            <div class="map-selection" id="map-selection" tabindex="-1" hidden>
+              <span class="map-selection-text" id="map-selection-text"></span>
+              <button class="map-selection-clear" type="button" id="map-show-all">
+                <i data-lucide="x"></i> <span id="map-show-all-label">Show all projects</span>
+              </button>
+            </div>
+            <div class="nearby-bar">
+              <button class="button subtle" type="button" id="locate-me" aria-pressed="false">
+                <i data-lucide="locate-fixed"></i>
+                <span id="locate-label">Show projects near me</span>
+              </button>
+              <label class="near-area">
+                <span>or choose your area</span>
+                <select id="near-area">
+                  <option value="">Calgary area…</option>
+                </select>
+              </label>
+              <p class="nearby-note" id="nearby-note" role="status">
+                Uses your browser's location. It stays on this device and is
+                never saved or sent to Proofly.
+              </p>
+            </div>
+            <div class="map-frame">
+              <div
+                class="explore-map"
+                id="explore-map"
+                role="region"
+                aria-label="Map of example community projects in Calgary"
+              ></div>
+              <p class="map-status" id="map-status" hidden></p>
+            </div>
+            <section class="nearby-panel" id="nearby-panel" aria-labelledby="nearby-title" hidden>
+              <h2 id="nearby-title">Closest to you</h2>
+              <p class="nearby-hint">Straight-line distance from your approximate location.</p>
+              <ol class="nearby-list" id="nearby-list"></ol>
+            </section>
+            <p class="map-caption">
+              Pins mark real public places such as libraries and community
+              associations. They are example locations only: these venues do
+              not offer, endorse or know about these projects.
+            </p>
+            <p class="projects-empty" id="projects-empty" hidden></p>
             <div class="projects-grid" id="all-projects"></div>
             <div class="inline-note">
               <i data-lucide="info"></i> These opportunities are illustrative,
               not live listings or partner requests.
             </div>
+            <details class="post-need" id="post-need">
+              <summary>
+                <i data-lucide="plus"></i> Coordinator demo: post a community need
+              </summary>
+              <form id="post-need-form" class="post-need-form">
+                <p>
+                  Add an example project to this browser's list and map. Pick a
+                  public venue from the list; personal or home addresses are
+                  never used.
+                </p>
+                <label for="need-title">Project title</label>
+                <input id="need-title" name="title" type="text" maxlength="80" required />
+                <label for="need-venue">Public venue</label>
+                <select id="need-venue" name="venue" required></select>
+                <label for="need-description">What would the volunteer do?</label>
+                <textarea id="need-description" name="description" rows="3" maxlength="300" required></textarea>
+                <label for="need-time">Time commitment</label>
+                <select id="need-time" name="time">
+                  <option>1–2 HOURS</option>
+                  <option>2–3 HOURS</option>
+                  <option>3–4 HOURS</option>
+                  <option>HALF DAY</option>
+                  <option>2 HOURS / WEEK</option>
+                </select>
+                <fieldset>
+                  <legend>Skills it builds</legend>
+                  <div class="skill-options" id="need-skills"></div>
+                </fieldset>
+                <button class="button primary" type="submit">
+                  Post example need <i data-lucide="arrow-right"></i>
+                </button>
+                <p class="form-error" id="post-need-error" role="status"></p>
+              </form>
+            </details>
           </section>
           <section
             class="view"

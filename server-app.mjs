@@ -21,6 +21,8 @@ const STATIC_FILES = {
   '/app.js': 'app.js',
   '/trust.mjs': 'trust.mjs',
   '/lens/lens.css': 'lens/lens.css',
+  '/map/explore-map.css': 'map/explore-map.css',
+  '/map/explore-map.mjs': 'map/explore-map.mjs',
   '/lens/projects.mjs': 'lens/projects.mjs',
   '/lens/skills.mjs': 'lens/skills.mjs',
   '/lens/student-pathway.mjs': 'lens/student-pathway.mjs',

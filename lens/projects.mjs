@@ -1,10 +1,91 @@
 // Fictional demo catalog of community projects. Shared by the browser (project cards, vouch
 // task list, student suggestions) and the server (the lens may only suggest ids from here).
+// Real, public Calgary venues (libraries, community associations and non-profits) used to place the
+// fictional example projects on the Explore map. Coordinates come from OpenStreetMap (Nominatim).
+// Never add residential addresses. The venues do not offer, endorse or know about these examples.
+export const communityVenues = [
+  { id: "cpl-central", name: "Calgary Public Library – Central Library", type: "Public library", area: "Downtown East Village", lat: 51.0455213, lng: -114.0550679 },
+  { id: "cpl-forest-lawn", name: "Calgary Public Library – Forest Lawn", type: "Public library", area: "Forest Lawn", lat: 51.0447815, lng: -113.9652284 },
+  { id: "cpl-nose-hill", name: "Calgary Public Library – Nose Hill", type: "Public library", area: "Brentwood", lat: 51.0964058, lng: -114.1388921 },
+  { id: "cpl-crowfoot", name: "Calgary Public Library – Crowfoot", type: "Public library", area: "Arbour Lake", lat: 51.1293981, lng: -114.1936997 },
+  { id: "cpl-village-square", name: "Calgary Public Library – Village Square", type: "Public library", area: "Pineridge", lat: 51.0759872, lng: -113.9551871 },
+  { id: "cpl-shawnessy", name: "Calgary Public Library – Shawnessy", type: "Public library", area: "Shawnessy", lat: 50.8982171, lng: -114.0640113 },
+  { id: "cpl-signal-hill", name: "Calgary Public Library – Signal Hill", type: "Public library", area: "Signal Hill", lat: 51.018833, lng: -114.1753967 },
+  { id: "cpl-louise-riley", name: "Calgary Public Library – Louise Riley", type: "Public library", area: "Hounsfield Heights/Briar Hill", lat: 51.0654603, lng: -114.1043757 },
+  { id: "cpl-bowness", name: "Calgary Public Library – Bowness", type: "Public library", area: "Bowness", lat: 51.0871693, lng: -114.182871 },
+  { id: "cpl-nicholls", name: "Calgary Public Library – Nicholls Family", type: "Public library", area: "Rosscarrock", lat: 51.0405498, lng: -114.1360734 },
+  { id: "cpl-fish-creek", name: "Calgary Public Library – Fish Creek", type: "Public library", area: "Willow Park", lat: 50.9518776, lng: -114.0609061 },
+  { id: "cpl-quarry-park", name: "Calgary Public Library – Quarry Park", type: "Public library", area: "Quarry Park", lat: 50.9612282, lng: -114.005872 },
+  { id: "cpl-memorial-park", name: "Calgary Public Library – Memorial Park", type: "Public library", area: "Beltline", lat: 51.0411214, lng: -114.0691093 },
+  { id: "cpl-judith-umbach", name: "Calgary Public Library – Judith Umbach", type: "Public library", area: "Huntington Hills", lat: 51.1120144, lng: -114.0642364 },
+  { id: "cpl-southwood", name: "Calgary Public Library – Southwood", type: "Public library", area: "Southwood", lat: 50.9636001, lng: -114.086216 },
+  { id: "cpl-giuffre", name: "Calgary Public Library – Giuffre Family", type: "Public library", area: "South Calgary", lat: 51.025558, lng: -114.095149 },
+  { id: "cpl-seton", name: "Calgary Public Library – Seton", type: "Public library", area: "Seton", lat: 50.8791028, lng: -113.9458061 },
+  { id: "hillhurst-sunnyside-ca", name: "Hillhurst Sunnyside Community Association", type: "Community association", area: "Hillhurst", lat: 51.0574724, lng: -114.0925412 },
+  { id: "thorncliffe-greenview-ca", name: "Thorncliffe Greenview Community Association", type: "Community association", area: "Thorncliffe", lat: 51.1017891, lng: -114.0617749 },
+  { id: "mount-pleasant-hall", name: "Mount Pleasant Community Hall", type: "Community association", area: "Mount Pleasant", lat: 51.0727689, lng: -114.0743829 },
+  { id: "inglewood-hall", name: "Inglewood Community Hall", type: "Community association", area: "Inglewood", lat: 51.0323895, lng: -114.0195416 },
+  { id: "genesis-centre", name: "Genesis Centre", type: "Community centre", area: "Martindale", lat: 51.1204909, lng: -113.9493134 },
+  { id: "vivo", name: "Vivo for Healthier Generations", type: "Non-profit recreation centre", area: "Country Hills Village", lat: 51.1595123, lng: -114.0654376 },
+  { id: "kerby-centre", name: "Kerby Centre", type: "Seniors' centre", area: "Downtown West End", lat: 51.0469128, lng: -114.0880552 },
+  { id: "calgary-food-bank", name: "Calgary Food Bank", type: "Food bank", area: "Highfield", lat: 51.0097033, lng: -114.035993 },
+  { id: "the-alex-cfc", name: "The Alex Community Food Centre", type: "Community food centre", area: "Forest Lawn", lat: 51.0381304, lng: -113.9632115 },
+  { id: "centre-for-newcomers", name: "Centre for Newcomers", type: "Settlement agency", area: "Franklin", lat: 51.0564236, lng: -113.9835529 },
+  { id: "ccis", name: "Calgary Catholic Immigration Society", type: "Settlement agency", area: "Beltline", lat: 51.042854, lng: -114.0867199 },
+];
+
+// Neighbourhood centres (OpenStreetMap boundaries) for "choose your area" on the Explore map, a manual
+// alternative when a device's location is rough or unavailable. Not anyone's address.
+export const calgaryAreas = [
+  { label: "Arbour Lake", lat: 51.13679, lng: -114.20236 },
+  { label: "Beltline", lat: 51.0405, lng: -114.07259 },
+  { label: "Bowness", lat: 51.08928, lng: -114.19308 },
+  { label: "Brentwood", lat: 51.09307, lng: -114.12605 },
+  { label: "Country Hills Village", lat: 51.1575, lng: -114.06152 },
+  { label: "Downtown East Village", lat: 51.0465, lng: -114.05064 },
+  { label: "Downtown West End", lat: 51.04727, lng: -114.08631 },
+  { label: "Forest Lawn", lat: 51.03772, lng: -113.97091 },
+  { label: "Highfield", lat: 51.01483, lng: -114.0412 },
+  { label: "Hillhurst", lat: 51.05541, lng: -114.09556 },
+  { label: "Hounsfield Heights/Briar Hill", lat: 51.06399, lng: -114.10591 },
+  { label: "Huntington Hills", lat: 51.11872, lng: -114.06829 },
+  { label: "Inglewood", lat: 51.03806, lng: -114.02482 },
+  { label: "Martindale", lat: 51.11813, lng: -113.95904 },
+  { label: "Mount Pleasant", lat: 51.07103, lng: -114.07759 },
+  { label: "Pineridge", lat: 51.07452, lng: -113.94701 },
+  { label: "Quarry Park", lat: 50.96139, lng: -114.01098 },
+  { label: "Rosscarrock", lat: 51.04165, lng: -114.14688 },
+  { label: "Seton", lat: 50.87488, lng: -113.94892 },
+  { label: "Shawnessy", lat: 50.90854, lng: -114.08516 },
+  { label: "Signal Hill", lat: 51.02331, lng: -114.17623 },
+  { label: "South Calgary", lat: 51.02613, lng: -114.10191 },
+  { label: "Southwood", lat: 50.95725, lng: -114.08382 },
+  { label: "Thorncliffe", lat: 51.1061, lng: -114.06941 },
+  { label: "Willow Park", lat: 50.96029, lng: -114.05465 },
+];
+
+const venueById =new Map(communityVenues.map((venue) => [venue.id, venue]));
+
+// Location fields for a project card and map marker. `organization` keeps the "· example" label.
+export function atVenue(id) {
+  const venue = venueById.get(id);
+  if (!venue) throw new Error(`Unknown venue: ${id}`);
+  return {
+    venueId: venue.id,
+    orgName: venue.name,
+    orgType: venue.type,
+    area: venue.area,
+    organization: `${venue.type} · example`,
+    lat: venue.lat,
+    lng: venue.lng,
+  };
+}
+
 export const projects = [
   {
     id: "video-calls",
     title: "Help neighbours connect online",
-    organization: "Neighbourhood centre · example",
+    ...atVenue("cpl-forest-lawn"),
     description: "Help someone feel confident connecting with family over a video call.",
     skills: ["Communication", "Digital"],
     icon: "video",
@@ -14,7 +95,7 @@ export const projects = [
   {
     id: "signup-sheet",
     title: "Make a community spreadsheet easier",
-    organization: "Community organization · example",
+    ...atVenue("thorncliffe-greenview-ca"),
     description: "Organize a fictional sign-up sheet in Excel or Google Sheets so a small team can spend more time helping.",
     skills: ["Digital", "Problem solving"],
     icon: "sheet",
@@ -24,7 +105,7 @@ export const projects = [
   {
     id: "digital-guide",
     title: "Create a simple digital guide",
-    organization: "Neighbourhood centre · example",
+    ...atVenue("cpl-central"),
     description: "Write clear, friendly instructions for someone learning a new tool.",
     skills: ["Writing", "Communication"],
     icon: "file-heart",
@@ -34,7 +115,7 @@ export const projects = [
   {
     id: "volunteer-database",
     title: "Clean up a volunteer database",
-    organization: "Food bank · example",
+    ...atVenue("calgary-food-bank"),
     description: "Merge duplicate contacts, fix columns and set up simple filters and lookups in a fictional volunteer database.",
     skills: ["Digital", "Numeracy", "Problem solving"],
     icon: "database",
@@ -44,7 +125,7 @@ export const projects = [
   {
     id: "tech-help-hour",
     title: "Run a drop-in tech help hour",
-    organization: "Seniors' centre · example",
+    ...atVenue("kerby-centre"),
     description: "Answer walk-in questions about phones, tablets and email, troubleshoot problems and follow up when something isn't fixed.",
     skills: ["Communication", "Problem solving", "Digital"],
     icon: "laptop",
@@ -54,7 +135,7 @@ export const projects = [
   {
     id: "event-check-in",
     title: "Coordinate check-in for a community event",
-    organization: "Community association · example",
+    ...atVenue("hillhurst-sunnyside-ca"),
     description: "Plan the sign-in table, schedule volunteers, greet attendees and keep the headcount accurate on the day.",
     skills: ["Collaboration", "Adaptability", "Numeracy"],
     icon: "calendar-check",
@@ -64,7 +145,7 @@ export const projects = [
   {
     id: "newsletter",
     title: "Write the monthly newsletter",
-    organization: "Non-profit · example",
+    ...atVenue("vivo"),
     description: "Interview staff, draft short plain-language articles and edit them for a newsletter that goes to members.",
     skills: ["Writing", "Reading", "Creativity and innovation"],
     icon: "newspaper",
@@ -74,7 +155,7 @@ export const projects = [
   {
     id: "newcomer-setup",
     title: "Set up devices for newcomer families",
-    organization: "Settlement agency · example",
+    ...atVenue("centre-for-newcomers"),
     description: "Help newcomer families set up phones, email and bus-pass apps, adapting explanations across languages and comfort levels.",
     skills: ["Adaptability", "Communication", "Digital"],
     icon: "smartphone",
@@ -84,7 +165,7 @@ export const projects = [
   {
     id: "community-sql-report",
     title: "Explore a fictional community database with SQL",
-    organization: "Community centre · example",
+    ...atVenue("genesis-centre"),
     description: "Use a fictional event database to practise SQL SELECT, filtering and counting, then summarize what the sample data shows.",
     skills: ["Digital", "Numeracy", "Problem solving"],
     icon: "database",
@@ -95,7 +176,7 @@ export const projects = [
   {
     id: "food-pantry-budget",
     title: "Build a food pantry budget spreadsheet",
-    organization: "Food pantry · example",
+    ...atVenue("the-alex-cfc"),
     description: "Use Excel or Google Sheets and a fictional grocery budget to practise formulas, totals and a simple chart for a volunteer team.",
     skills: ["Numeracy", "Digital", "Collaboration"],
     icon: "sheet",
@@ -105,7 +186,7 @@ export const projects = [
   {
     id: "welcome-desk",
     title: "Plan a friendly community welcome desk",
-    organization: "Community association · example",
+    ...atVenue("mount-pleasant-hall"),
     description: "Practise greeting visitors, answering common questions and working with volunteers to direct people to the right resources.",
     skills: ["Communication", "Collaboration", "Adaptability"],
     icon: "users",
@@ -115,7 +196,7 @@ export const projects = [
   {
     id: "accessible-event-guide",
     title: "Create an accessible event guide",
-    organization: "Neighbourhood centre · example",
+    ...atVenue("cpl-nose-hill"),
     description: "Read a fictional event brief and write a plain-language guide with a clear schedule, directions and accessibility information.",
     skills: ["Reading", "Writing", "Creativity and innovation"],
     icon: "file-heart",
@@ -125,7 +206,7 @@ export const projects = [
   {
     id: "sql-food-pantry",
     title: "Query a sample food pantry inventory",
-    organization: "Food pantry · example",
+    ...atVenue("cpl-quarry-park"),
     description: "Practise SQL filters, joins and totals with fictional food pantry inventory and delivery records.",
     skills: ["Digital", "Numeracy", "Problem solving"],
     icon: "database",
@@ -136,7 +217,7 @@ export const projects = [
   {
     id: "python-donations",
     title: "Summarize sample donations with Python",
-    organization: "Community pantry · example",
+    ...atVenue("cpl-village-square"),
     description: "Write a small Python script to read fictional donation records, calculate totals and check for missing entries.",
     skills: ["Digital", "Numeracy", "Problem solving"],
     icon: "code",
@@ -146,7 +227,7 @@ export const projects = [
   {
     id: "python-event-counts",
     title: "Explore fictional event attendance with Python",
-    organization: "Community centre · example",
+    ...atVenue("cpl-shawnessy"),
     description: "Practise Python by grouping sample event attendance data and reporting the busiest activities.",
     skills: ["Digital", "Numeracy", "Reading"],
     icon: "chart-column",
@@ -156,7 +237,7 @@ export const projects = [
   {
     id: "javascript-event-page",
     title: "Build a sample community event page",
-    organization: "Neighbourhood centre · example",
+    ...atVenue("cpl-crowfoot"),
     description: "Use HTML and JavaScript to build a fictional event page with an interactive schedule and clear accessibility labels.",
     skills: ["Digital", "Creativity and innovation", "Writing"],
     icon: "code",
@@ -166,7 +247,7 @@ export const projects = [
   {
     id: "javascript-resource-finder",
     title: "Make a sample resource finder",
-    organization: "Community association · example",
+    ...atVenue("cpl-signal-hill"),
     description: "Practise JavaScript by filtering a fictional list of community resources and showing a useful empty state.",
     skills: ["Digital", "Problem solving", "Creativity and innovation"],
     icon: "search",
@@ -176,7 +257,7 @@ export const projects = [
   {
     id: "spreadsheet-rota",
     title: "Plan a volunteer rota in a spreadsheet",
-    organization: "Community kitchen · example",
+    ...atVenue("inglewood-hall"),
     description: "Use Excel or Google Sheets to organize a fictional volunteer rota and count available shifts.",
     skills: ["Digital", "Collaboration", "Numeracy"],
     icon: "sheet",
@@ -186,7 +267,7 @@ export const projects = [
   {
     id: "database-resource-list",
     title: "Organize a sample resource database",
-    organization: "Community centre · example",
+    ...atVenue("cpl-fish-creek"),
     description: "Design categories and clean fictional resource records in a sample database so volunteers can find information.",
     skills: ["Digital", "Reading", "Problem solving"],
     icon: "database",
@@ -196,7 +277,7 @@ export const projects = [
   {
     id: "service-faq",
     title: "Practise customer service with a help-desk FAQ",
-    organization: "Neighbourhood centre · example",
+    ...atVenue("cpl-nicholls"),
     description: "Role-play customer service questions with a partner and write a friendly FAQ for fictional visitors.",
     skills: ["Communication", "Writing", "Collaboration"],
     icon: "message-circle",
@@ -206,7 +287,7 @@ export const projects = [
   {
     id: "event-backup-plan",
     title: "Plan for changes at a community event",
-    organization: "Community association · example",
+    ...atVenue("cpl-bowness"),
     description: "Work with a volunteer team to adapt a fictional event plan when the venue, schedule or available staff changes.",
     skills: ["Adaptability", "Collaboration", "Problem solving"],
     icon: "calendar-check",
@@ -216,7 +297,7 @@ export const projects = [
   {
     id: "community-poster",
     title: "Design a welcoming community poster",
-    organization: "Neighbourhood centre · example",
+    ...atVenue("cpl-louise-riley"),
     description: "Read a fictional event brief and design a clear, creative poster for different audiences.",
     skills: ["Creativity and innovation", "Reading", "Communication"],
     icon: "palette",
