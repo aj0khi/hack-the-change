@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { inspectBadgrAssertion } from './verification/badgr.mjs';
 import { runLens } from './lens/lens.mjs';
+import { analyzePublishedCredentials } from './lens/employer.mjs';
 import { projects } from './lens/projects.mjs';
 import QRCode from 'qrcode';
 
@@ -15,6 +16,9 @@ const LENS_CACHE_MAX = 100;
 const STATIC_FILES = {
   '/': 'index.html',
   '/index.html': 'index.html',
+  '/employer': 'employer.html',
+  '/employer.html': 'employer.html',
+  '/lens/employer-ui.mjs': 'lens/employer-ui.mjs',
   '/styles.css': 'styles.css',
   '/robots.txt': 'robots.txt',
   '/proofly-share-preview.png': 'proofly-share-preview.png',
@@ -64,6 +68,21 @@ export function createApp({ config, store, demoCredentials, authenticate, getUse
   app.disable('x-powered-by');
   app.use('/api', (_request, response, next) => { response.set('Cache-Control', 'no-store'); next(); });
   app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 100, standardHeaders: true, legacyHeaders: false }));
+
+  app.post('/api/employer/lens',
+    rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false }),
+    express.json({ limit: '128kb' }),
+    async (request, response) => {
+      try {
+        const result = await analyzePublishedCredentials(request.body || {}, {
+          appOrigin: config.appOrigin, store: demoCredentials, generate: lens.generate, model: lens.model,
+        });
+        response.status(result.status).json(result.body);
+      } catch (error) {
+        console.error('[employer lens] analysis failed:', error.message);
+        response.status(503).json({ error: 'Could not verify or analyze the credentials. Try again.' });
+      }
+    });
 
   // Employer Lens: registered before the global 8kb parser because a full posting plus signed
   // credentials is larger. Identical posting + credentials reuse the last good answer.

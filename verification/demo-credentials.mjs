@@ -56,6 +56,13 @@ export async function createDemoCredentialStore(filename) {
       if (!row) return null;
       return verifyCredential(row.token, issuer.publicKey);
     },
+    async getPublished(id) {
+      if (!/^[A-Za-z0-9_-]{32}$/.test(id)) return null;
+      const row = db.prepare('SELECT token FROM shared_demo_credentials WHERE id=?').get(id);
+      if (!row) return null;
+      const result = await verifyCredential(row.token, issuer.publicKey);
+      return result.valid ? { token: row.token, payload: result.payload } : { valid: false };
+    },
     close() { db.close(); },
   };
 }

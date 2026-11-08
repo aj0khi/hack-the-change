@@ -2,7 +2,7 @@ import {
   verifyCredential,
   alterCredential,
 } from "./trust.mjs";
-import { projects, keywordProjectSuggestions, communityVenues, calgaryAreas, atVenue } from "./lens/projects.mjs";
+import { projects, communityVenues, calgaryAreas, atVenue } from "./lens/projects.mjs";
 import { skillTerms } from "./lens/skills.mjs";
 import { buildStudentPathway } from "./lens/student-pathway.mjs";
 import { makeShareCard } from "./verification/share-card.mjs";
@@ -57,7 +57,7 @@ const viewNames = {
   overview: "Overview",
   projects: "Explore projects",
   credentials: "My credentials",
-  lens: "Employer lens",
+  lens: "Student skills lens",
   vouch: "Give a vouch",
   kiosk: "Easy vouch",
   verification: "Account verification",
@@ -243,16 +243,6 @@ function renderProjects() {
   explore?.refresh();
 }
 
-// The skill a gap line is about, for "Find projects that build this skill".
-function gapSkill(text, suggestions) {
-  const direct = skillNames.find((skill) => skillTerms[skill].test(text));
-  if (direct) return direct;
-  const counts = {};
-  for (const suggestion of suggestions ?? [])
-    for (const skill of suggestion.skills ?? []) counts[skill] = (counts[skill] ?? 0) + 1;
-  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
-}
-
 const findProjectsButton = (skill) =>
   skill && skillNames.includes(skill)
     ? `<button class="button subtle gap-explore" type="button" data-skill-filter="${escapeHTML(skill)}" aria-label="Find projects that build this skill: ${escapeHTML(skill)}">Find projects that build this skill <span class="kind-tag">${escapeHTML(skill)}</span> ${icon("map-pin")}</button>`
@@ -318,54 +308,15 @@ async function openCredential(index) {
   refreshIcons();
 }
 
-// Lens state: who is looking, and the last result so the toggle can re-render without a new API call.
-let lensAudience = "employer";
-let lastLens; // { mode: "ai", data } | { mode: "offline", input }
-let lensRequest = 0;
+// Student pathway uses only this browser's verified credentials.
+let lastLens;
 let lensRender = 0;
-const DISCLAIMER_AI =
-  "AI extracts requirements and proposes matches; every quote is checked word-for-word against a signed credential before it's shown. Gaps are never filled by AI. Not a hiring recommendation.";
-const DISCLAIMER_OFFLINE =
-  "The AI lens is unavailable, so simple keyword rules matched requirements to signed credentials. Review every source and gap yourself. Not a hiring recommendation.";
 const DISCLAIMER_STUDENT =
   "Student view uses keyword hints and this browser's signed demo evidence, not an assessment of your ability or a hiring recommendation. Project ideas are fictional. Review the full posting, including qualifications we may miss.";
 
-function suggestionMarkup(kind, suggestions, keywordBased = false) {
-  if (lensAudience !== "student") return "";
-  if (kind === "credential" || kind === "other")
-    return `<div class="suggestion-box muted"><p>This needs an official credential or availability; community projects can't prove it.</p></div>`;
-  if (!suggestions?.length)
-    // Offline lines are raw sentences (headings, boilerplate), so stay quiet rather than add noise.
-    return keywordBased
-      ? ""
-      : `<div class="suggestion-box muted"><p>No community project in our catalog builds this yet.</p></div>`;
-  return `<div class="suggestion-box"><p class="suggestion-title">${icon("sprout")} Fictional demo projects that could build this${keywordBased ? " <span>(keyword match)</span>" : ""}</p>${suggestions
-    .map(
-      (s) =>
-        `<div class="suggestion"><div><strong>${escapeHTML(s.title)}</strong><span class="suggestion-meta">${escapeHTML(s.organization)} · ${escapeHTML(s.time)}</span>${s.why ? `<p>${escapeHTML(s.why)}</p>` : ""}${demandLine(s.skills)}</div><button class="button subtle" type="button" data-project="${escapeHTML(s.title)}">Use for a demo vouch ${icon("arrow-right")}</button></div>`,
-    )
-    .join("")}</div>`;
-}
-
-const gapMarkup = (text, kind, suggestions, keywordBased) =>
-  `<div class="lens-result"><div class="lens-result-top"><span class="result-status gap">${icon("minus")}</span><h3>${escapeHTML(text)}${kind ? ` <span class="kind-tag">${escapeHTML(kind)}</span>` : ""}</h3></div><p class="result-desc">No verified evidence yet. This is not a judgment of ability.</p>${suggestionMarkup(kind, suggestions, keywordBased)}${kind === "credential" || kind === "other" ? "" : findProjectsButton(gapSkill(text, suggestions))}</div>`;
-
-// Offline suggestions: catalog projects sharing a skill the gap line mentions.
-function keywordSuggestions(line) {
-  const specific = keywordProjectSuggestions(line);
-  if (specific) return specific;
-  const wanted = Object.keys(skillTerms).filter((skill) => skillTerms[skill].test(line));
-  return projects
-    .map((project) => ({ project, score: project.skills.filter((s) => wanted.includes(s)).length }))
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 2)
-    .map(({ project }) => ({ ...project, why: `Practises ${project.skills.filter((s) => wanted.includes(s)).join(" and ").toLowerCase()}.` }));
-}
-
 async function renderStudentPathway(input, target, renderId) {
   const validCredentials = await verifiedCredentials();
-  if (renderId !== lensRender || lensAudience !== "student") return;
+  if (renderId !== lensRender) return;
   const skills = buildStudentPathway(input, validCredentials);
   const supported = skills.filter((skill) => skill.evidence.length);
   const gaps = skills.filter((skill) => !skill.evidence.length);
@@ -386,44 +337,12 @@ function renderLens() {
   if (!lastLens) return;
   const renderId = ++lensRender;
   const target = document.querySelector("#lens-results");
-  document.querySelector("#lens-disclaimer-text").textContent =
-    lensAudience === "student" ? DISCLAIMER_STUDENT : lastLens.mode === "ai" ? DISCLAIMER_AI : DISCLAIMER_OFFLINE;
-  if (lensAudience === "student") renderStudentPathway(lastLens.input, target, renderId);
-  else if (lastLens.mode === "ai") renderAiLens(lastLens.data, target);
-  else keywordLens(lastLens.input, target, renderId);
+  document.querySelector("#lens-disclaimer-text").textContent = DISCLAIMER_STUDENT;
+  renderStudentPathway(lastLens.input, target, renderId);
   refreshIcons();
 }
 
-function renderAiLens(data, target) {
-  const { stats } = data;
-  const summary = `<div class="lens-summary" role="status"><strong>${stats.matched} of ${stats.total}</strong> requirement${stats.total === 1 ? "" : "s"} ${stats.matched === 1 ? "has" : "have"} verified evidence <span class="lens-source">AI · ${escapeHTML(data.model)} · ${stats.validCredentials} signed credential${stats.validCredentials === 1 ? "" : "s"} checked${data.cached ? " · saved result" : ""}</span></div>`;
-  const rows = data.requirements
-    .map((requirement) => {
-      if (!requirement.matches.length)
-        return gapMarkup(requirement.text, requirement.kind, requirement.suggestedProjects);
-      return `<div class="lens-result"><div class="lens-result-top"><span class="result-status">${icon("check")}</span><h3>${escapeHTML(requirement.text)} <span class="kind-tag">${escapeHTML(requirement.kind)}</span></h3></div>${requirement.matches
-        .map(
-          (match) =>
-            `<div class="lens-evidence"><p class="result-desc"><span class="evidence-tag ${match.evidenceType === "action" ? "action" : "praise"}">${match.evidenceType === "action" ? "WHAT THEY DID" : "PRAISE"}</span> “${escapeHTML(match.quote)}” <span class="lens-witness">— ${escapeHTML(match.witness)}, via ${escapeHTML(match.issuer)}</span></p>${match.why ? `<p class="result-desc lens-why">${escapeHTML(match.why)}</p>` : ""}<button class="text-link" type="button" data-credential="${escapeHTML(match.credentialId)}">See the signed evidence ${icon("arrow-up-right")}</button></div>`,
-        )
-        .join("")}</div>`;
-    })
-    .join("");
-  const rejected = data.rejected?.length
-    ? `<details class="lens-rejected"><summary>Show what the AI proposed that we rejected (${data.rejected.length})</summary>${data.rejected
-        .map(
-          (item) =>
-            `<div class="rejected-item"><p><strong>${escapeHTML(item.requirement)}</strong></p><p class="result-desc">Proposed: “${escapeHTML(item.quote || "(no quote)")}” from credential ${escapeHTML(item.credentialId || "?")}</p><p class="result-desc rejected-reason">${icon("x")} ${escapeHTML(item.reason)}</p></div>`,
-        )
-        .join("")}</details>`
-    : `<p class="lens-clean">Grounding check: every AI-proposed quote matched its signed credential word-for-word.</p>`;
-  target.className = "";
-  target.innerHTML = summary + rows + rejected;
-  announce(`${stats.matched} of ${stats.total} requirements have verified evidence.`);
-}
-
 async function analyzeJob() {
-  const requestId = ++lensRequest;
   ++lensRender;
   lastLens = undefined;
   const input = document.querySelector("#job-description").value.trim();
@@ -437,67 +356,8 @@ async function analyzeJob() {
       "<h2>Add a job posting first.</h2><p>Paste the whole posting, or pick an example.</p>";
     return;
   }
-  target.className = "lens-empty";
-  target.setAttribute("aria-busy", "true");
-  target.innerHTML = `<span class="lens-spinner">${icon("loader-circle")}</span><h2>Reading the posting…</h2><p>Extracting requirements and checking every quote against signed credentials.</p>`;
-  refreshIcons();
-  button.disabled = true;
-  let data;
-  try {
-    const response = await fetch("/api/lens", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        posting: input,
-        credentials,
-        issuerPublicKey: issuer?.publicKey ?? "",
-      }),
-    });
-    data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Lens request failed");
-  } catch {
-    data = { fallback: true };
-  } finally {
-    if (requestId === lensRequest) {
-      button.disabled = false;
-      target.removeAttribute("aria-busy");
-    }
-  }
-  if (requestId !== lensRequest) return;
-  lastLens =
-    !data.fallback && Array.isArray(data.requirements)
-      ? { mode: "ai", data, input }
-      : { mode: "offline", input };
+  lastLens = { input };
   renderLens();
-}
-
-// Offline fallback: the original regex lens, clearly labelled.
-async function keywordLens(input, target, renderId) {
-  const lines = input
-    .split(/\n+|(?<=[.!?])\s+/)
-    .map((line) => line.replace(/^\s*[-•*]\s*/, "").trim())
-    .filter((line) => line.length > 3)
-    .slice(0, 20);
-  const validCredentials = await verifiedCredentials();
-  if (renderId !== lensRender || lensAudience !== "employer") return;
-  target.className = "";
-  target.innerHTML = `<div class="lens-summary offline" role="status"><strong>Offline keyword matching</strong> <span class="lens-source">The AI lens is unavailable, so this uses simple keyword rules. Results are rougher.</span></div>` + lines
-    .map((line) => {
-      const matched = validCredentials
-        .flatMap((credential) =>
-          credential.payload.mappings.map((mapping) => ({
-            ...mapping,
-            index: credential.index,
-          })),
-        )
-        .find((mapping) => skillTerms[mapping.skill]?.test(line) &&
-          (!/\bsql\b/i.test(line) || /\bsql\b/i.test(mapping.quote)));
-      if (!matched) return gapMarkup(line, "", keywordSuggestions(line), true);
-      return `<div class="lens-result"><div class="lens-result-top"><span class="result-status">${icon("check")}</span><h3>${escapeHTML(line)}</h3></div><p class="result-desc">${escapeHTML(matched.skill)} · “${escapeHTML(matched.quote)}”</p><button class="text-link" type="button" data-credential="${matched.index}">See the signed evidence ${icon("arrow-up-right")}</button></div>`;
-    })
-    .join("");
-  refreshIcons();
-  announce(`Evidence map updated for ${lines.length} requirements.`);
 }
 
 document.addEventListener("click", (event) => {
@@ -531,15 +391,6 @@ document.addEventListener("click", (event) => {
     document.querySelector("#share-error").textContent = "";
     document.querySelector("#publish-credential").hidden = false;
     document.querySelector("#share-dialog").showModal();
-  }
-  const audienceButton = event.target.closest("[data-audience]");
-  if (audienceButton && audienceButton.dataset.audience !== lensAudience) {
-    lensAudience = audienceButton.dataset.audience;
-    document.querySelectorAll("[data-audience]").forEach((button) => {
-      button.setAttribute("aria-pressed", String(button.dataset.audience === lensAudience));
-    });
-    renderLens();
-    announce(lensAudience === "student" ? "Showing student view with project suggestions." : "Showing employer view.");
   }
 });
 
@@ -721,7 +572,6 @@ document.querySelector("#job-select").addEventListener("change", (event) => {
   analyzeJob();
 });
 document.querySelector("#job-description").addEventListener("input", () => {
-  ++lensRequest;
   ++lensRender;
   lastLens = undefined;
   const target = document.querySelector("#lens-results");
@@ -731,37 +581,6 @@ document.querySelector("#job-description").addEventListener("input", () => {
   document.querySelector("#analyze-job").disabled = false;
 });
 document.querySelector("#analyze-job").addEventListener("click", analyzeJob);
-
-document.querySelector("#badge-lookup-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const output = document.querySelector("#badge-lookup-result");
-  const button = form.querySelector('button[type="submit"]');
-  output.hidden = false;
-  output.textContent = "Checking the provider’s public record…";
-  button.disabled = true;
-  try {
-    const response = await fetch("/api/badgr/assertion", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(Object.fromEntries(new FormData(form))),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Badge lookup unavailable.");
-    const messages = {
-      found: "Provider record found. Recipient ownership and issuer trust are not verified.",
-      revoked: "The provider reports that this assertion is revoked.",
-      expired: "This assertion has expired.",
-      not_found: "No public assertion was found in this region.",
-    };
-    output.textContent = messages[result.status] || "The badge status could not be determined.";
-    if (result.status === "found" && result.badgeName) output.textContent += ` Badge: ${result.badgeName}.`;
-  } catch (error) {
-    output.textContent = error.message || "Badge lookup unavailable.";
-  } finally {
-    button.disabled = false;
-  }
-});
 
 document
   .querySelector("#vouch-form")
