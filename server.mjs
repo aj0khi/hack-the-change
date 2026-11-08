@@ -31,7 +31,9 @@ const getUserInfo = configured ? async token => {
 } : null;
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const store = createVerificationStore(process.env.VERIFICATION_DB || join(root, 'verification', 'verification.sqlite'));
-const demoCredentials = await createDemoCredentialStore(process.env.DEMO_CREDENTIAL_DB || join(root, 'data', 'demo-credentials.sqlite'));
+// Demo issuer + trusted issuer registry. Refuses to start if DEMO_ISSUER_* keys are partial or malformed.
+const demoCredentials = await createDemoCredentialStore(process.env.DEMO_CREDENTIAL_DB || join(root, 'data', 'demo-credentials.sqlite'), { env: process.env });
+console.log(`[credentials] Trusted issuer: ${demoCredentials.issuerName} (${demoCredentials.issuerId}), key from ${demoCredentials.keySource}.`);
 
 // Employer Lens: AI model, Calgary jobs (cached in data/), and saved lens answers (data/lens-cache.json).
 // Provider order: Groq if GROQ_API_KEY is set, otherwise Bedrock if AWS credentials are set, otherwise offline.

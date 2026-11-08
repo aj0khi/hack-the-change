@@ -1,6 +1,5 @@
-// Employer Lens core: verify credentials, ask the model, then ground every match in code.
-// The model is injected (`generate`) so tests can run offline with a mock.
-import { verifyCredential } from "../trust.mjs";
+// Employer Lens core: take credentials already checked by the shared verifier, ask the model, then ground
+// every match in code. The model is injected (`generate`) so tests can run offline with a mock.
 import { projects as defaultCatalog } from "./projects.mjs";
 
 export const MAX_SUGGESTIONS = 2;
@@ -176,26 +175,27 @@ export function groundRequirements(rawRequirements, validById, catalog = default
   return { requirements, rejected, droppedSuggestions };
 }
 
+/**
+ * checks: results from the shared server verifier (verification/credential-verifier.mjs), one per submitted
+ * credential, in order. Only `valid: true` results (trusted issuer, good signature, issued here) are used.
+ */
 export async function runLens(
-  { posting, credentials, issuerPublicKey },
+  { posting, checks: verified },
   { generate, model = "unknown", timeoutMs = MODEL_TIMEOUT_MS } = {},
 ) {
   if (typeof posting !== "string" || !posting.trim())
     return { status: 400, body: { error: "Paste a job posting first." } };
-  if (!Array.isArray(credentials) || typeof issuerPublicKey !== "string")
-    return { status: 400, body: { error: "credentials[] and issuerPublicKey are required." } };
+  if (!Array.isArray(verified))
+    return { status: 400, body: { error: "Verified credential results are required." } };
 
   const trimmed = posting.trim().slice(0, MAX_POSTING_CHARS);
 
-  // 1. Only valid signed credentials go any further. Ids are positions in the submitted array.
-  const checks = await Promise.all(
-    credentials.slice(0, MAX_CREDENTIALS).map(async (token, index) => ({
-      id: String(index),
-      ...(typeof token === "string"
-        ? await verifyCredential(token, issuerPublicKey)
-        : { valid: false }),
-    })),
-  );
+  // 1. Only verified credentials go any further. Ids are positions in the submitted array.
+  const checks = verified.slice(0, MAX_CREDENTIALS).map((result, index) => ({
+    id: String(index),
+    valid: result?.valid === true && result.status === "verified",
+    payload: result?.credential, // issuer name here comes from the trusted registry
+  }));
   const valid = checks.filter((c) => c.valid);
   const validById = new Map(valid.map((c) => [c.id, c]));
 
