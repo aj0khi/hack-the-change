@@ -21,7 +21,7 @@ const parsedOrigin = new URL(appOrigin);
 if (parsedOrigin.origin !== appOrigin || !(parsedOrigin.protocol === 'https:' || (parsedOrigin.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsedOrigin.hostname)))) throw new Error('APP_ORIGIN must be an HTTPS origin or a localhost HTTP origin.');
 const auth0Domain = process.env.AUTH0_DOMAIN;
 if (auth0Domain && !/^[a-zA-Z0-9.-]+$/.test(auth0Domain)) throw new Error('AUTH0_DOMAIN must be a hostname.');
-const config = { appOrigin, auth0Domain, auth0ClientId: process.env.AUTH0_CLIENT_ID, auth0Audience: process.env.AUTH0_AUDIENCE, linkedinClientId: process.env.LINKEDIN_CLIENT_ID, linkedinClientSecret: process.env.LINKEDIN_CLIENT_SECRET };
+const config = { appOrigin, auth0Domain, auth0ClientId: process.env.AUTH0_CLIENT_ID, auth0Audience: process.env.AUTH0_AUDIENCE };
 const configured = auth0Domain && config.auth0ClientId && config.auth0Audience;
 const authenticate = configured ? auth({ audience: config.auth0Audience, issuerBaseURL: `https://${auth0Domain}/`, tokenSigningAlg: 'RS256' }) : null;
 const getUserInfo = configured ? async token => {

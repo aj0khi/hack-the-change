@@ -64,7 +64,6 @@ This app is a Node.js/Express web app, not a static-only site. Hostinger managed
    | `AUTH0_CLIENT_ID` | Client ID for the **Proofly** Auth0 SPA |
    | `AUTH0_AUDIENCE` | Exact Identifier of your Auth0 API |
    | `STRIPE_SECRET_KEY` | Optional; use a Stripe test key for a demo, or leave unset |
-   | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | Optional; LinkedIn developer app credentials for direct posting (see below) |
    | `VERIFICATION_DB` | Optional; a writable persistent path if your plan provides one |
    | `DEMO_CREDENTIAL_DB` | A writable, private, persistent SQLite path for the demo issuer key and published credentials |
 
@@ -76,14 +75,9 @@ For local development, `.env` is ignored by Git; `.env.example` contains placeho
 
 The SQLite databases are not production databases. Set `DEMO_CREDENTIAL_DB` outside the deployment directory to a private persistent location on Hostinger; otherwise redeploys may delete the signing key and shared records, breaking existing links. Back up this database securely: it contains the private issuer key. Set `VERIFICATION_DB` to a persistent path if using account verification. The current identity and organization verification flows are not production-ready; see [Boundaries](#boundaries) before collecting real identity information.
 
-## LinkedIn direct posting setup
+## Sharing to LinkedIn
 
-1. Create a [LinkedIn developer app](https://www.linkedin.com/developers/apps) and request the **Share on LinkedIn** and **Sign In with LinkedIn using OpenID Connect** products. LinkedIn must grant access to `w_member_social`, `openid`, and `profile`.
-2. In the app's Auth settings, add the exact redirect URL `https://your-domain/api/linkedin/callback`, replacing `https://your-domain` with your configured `APP_ORIGIN` (for local testing use `http://localhost:8766/api/linkedin/callback` if LinkedIn accepts it).
-3. Set `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET` in Hostinger's environment settings and restart or redeploy. Keep the secret private and never commit it. The direct-post button is hidden until both are configured. Users must allow pop-ups and consent to LinkedIn's permissions.
-4. Publish a fictional credential, select **Prepare LinkedIn post**, review the generated image and caption, connect LinkedIn, then explicitly select **Post publicly on LinkedIn**. The image is uploaded directly to LinkedIn, so the post does not rely on an automatic link preview. Check the LinkedIn profile after posting. If an error says the result is uncertain, check for the post before retrying.
-
-The connection uses a short-lived, HTTP-only cookie and server-memory access token, expires after at most ten minutes, and is cleared after posting or disconnecting. A restart loses connections; this prototype requires a single server instance and is not a production session store. Disconnecting removes Proofly's local session; revoke the app in LinkedIn's settings to remove its authorization. LinkedIn may change its API or require app approval; the real integration requires a configured LinkedIn account and must be tested separately. The public post includes the fictional credential's student, project, issuer, skills, link and QR code; anyone with the link can see the full published demo.
+Publish a fictional credential and select **Prepare LinkedIn post** to review its image and caption. On supported devices, **Share image to an app** opens the native share sheet with both; choose LinkedIn if available, verify what transferred, and post from LinkedIn. Share targets can omit the image or text and are not controlled by Proofly. Alternatively, copy the caption and download the image, then attach and paste them into a LinkedIn post. **Open LinkedIn with link** opens a link-only composer and may not produce a preview if LinkedIn cannot crawl the site. No LinkedIn developer credentials are needed; Proofly no longer posts on the user's behalf. Existing LinkedIn app authorizations can be revoked in LinkedIn's settings.
 
 ## Project Layout
 
@@ -141,7 +135,7 @@ The [Badgr API documentation](https://api.badgr.io/swagger-ui/index.html) specif
 2. Approve the demo credential. The server signs it with its demo Ed25519 key; the browser stores the token in IndexedDB.
 3. Open the credential and use **Change a character**, then **Verify signature**. Verification fails after the change.
 4. On a credential, choose **Share**, read the warning, and choose **Publish and create link**. Scan the QR code on a phone to open the public `/verify/:id` page. The phone needs network access to the configured `APP_ORIGIN` (a localhost URL works only on the host computer).
-   After publishing, **Prepare LinkedIn post** offers direct posting if configured above; **Open LinkedIn with link** opens LinkedIn's share composer, and **More sharing options** uses the device's share sheet when available. **Download demo image** creates a PNG with a QR code for manual sharing. No post is made without explicit confirmation, and nothing is added as a LinkedIn certification.
+   After publishing, **Prepare LinkedIn post** shows a caption and image with a QR code for review and sharing as described above; **More sharing options** uses the device's share sheet when available. **Download demo image** creates a PNG for manual sharing. Proofly does not post directly or add a LinkedIn certification.
    The verification page supplies generic Open Graph metadata and a public preview image for social platforms. Previews never include the witness or testimonial, but anyone with the link (including platform crawlers) can access the full published page. The app serves a `robots.txt` explicitly allowing LinkedInBot while preserving the previous Googlebot restriction; a hosting CDN may override it. After deployment, check the public `/robots.txt` contains the LinkedInBot rule, then use [LinkedIn Post Inspector](https://www.linkedin.com/post-inspector/) to refresh the URL. The verification page retains its `noindex, nofollow` header; preview availability also depends on LinkedIn and hosting access to the page.
 5. Open **Employer lens** and use the example job description. Matches show a skill and the exact signed quote; unsupported requirements remain gaps. Click a match to inspect the credential.
 
