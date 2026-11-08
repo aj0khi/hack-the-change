@@ -5,6 +5,8 @@ import {
 import { projects, keywordProjectSuggestions } from "./lens/projects.mjs";
 import { skillTerms } from "./lens/skills.mjs";
 import { buildStudentPathway } from "./lens/student-pathway.mjs";
+import { makeShareCard } from "./verification/share-card.mjs";
+import { linkedinCaption } from "./verification/linkedin-caption.mjs";
 
 const examples = {
   transcript:
@@ -77,6 +79,9 @@ let credentials = [];
 let selectedCredential;
 let pendingVouch;
 let shareToken;
+let linkedinCard;
+let linkedinPreviewUrl;
+let linkedinFile;
 
 async function demoRequest(path, body) {
   const response = await fetch(path, body === undefined ? { cache: "no-store" } : {
@@ -484,6 +489,8 @@ document.addEventListener("click", (event) => {
   if (shareButton) {
     shareToken = credentials[Number(shareButton.dataset.share)];
     document.querySelector("#share-result").hidden = true;
+    document.querySelector("#linkedin-review").hidden = true;
+    document.querySelector("#linkedin-status").textContent = "";
     document.querySelector("#share-error").textContent = "";
     document.querySelector("#publish-credential").hidden = false;
     document.querySelector("#share-dialog").showModal();
@@ -525,7 +532,13 @@ document.querySelector("#verify-token").addEventListener("click", async () => {
     : "Not valid: the signature does not match the credential or trusted demo key.";
 });
 document.querySelector("#close-share").addEventListener("click", () => document.querySelector("#share-dialog").close());
-document.querySelector("#share-dialog").addEventListener("close", () => { shareToken = undefined; });
+document.querySelector("#share-dialog").addEventListener("close", () => {
+  shareToken = undefined;
+  linkedinCard = undefined;
+  linkedinFile = undefined;
+  if (linkedinPreviewUrl) URL.revokeObjectURL(linkedinPreviewUrl);
+  linkedinPreviewUrl = undefined;
+});
 document.querySelector("#publish-credential").addEventListener("click", async (event) => {
   const button = event.currentTarget;
   button.disabled = true;
@@ -536,11 +549,60 @@ document.querySelector("#publish-credential").addEventListener("click", async (e
     link.href = result.url;
     link.textContent = result.url;
     document.querySelector("#share-qr").src = result.qrUrl;
+    const linkedIn = new URL("https://www.linkedin.com/sharing/share-offsite/");
+    linkedIn.searchParams.set("url", result.url);
+    document.querySelector("#share-linkedin").href = linkedIn.href;
+    document.querySelector("#native-share").hidden = !navigator.share;
     document.querySelector("#share-result").hidden = false;
     button.hidden = true;
   } catch (error) {
     document.querySelector("#share-error").textContent = error.message;
   } finally { button.disabled = false; }
+});
+document.querySelector("#prepare-linkedin").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  document.querySelector("#share-error").textContent = "";
+  try {
+    const result = await verifyCredential(shareToken, issuer.publicKey);
+    if (!result.valid) throw new Error("This demo credential could not be verified.");
+    const link = document.querySelector("#share-link").href;
+    linkedinCard = await makeShareCard(result.payload, link, document.querySelector("#share-qr").src);
+    linkedinFile = new File([linkedinCard], "proofly-demo-credential.png", { type: "image/png" });
+    if (linkedinPreviewUrl) URL.revokeObjectURL(linkedinPreviewUrl);
+    linkedinPreviewUrl = URL.createObjectURL(linkedinCard);
+    document.querySelector("#linkedin-image-preview").src = linkedinPreviewUrl;
+    document.querySelector("#linkedin-caption").textContent = linkedinCaption(result.payload, link);
+    const data = { files: [linkedinFile], text: linkedinCaption(result.payload, link) };
+    document.querySelector("#share-linkedin-image").hidden = !(navigator.share && navigator.canShare?.(data));
+    document.querySelector("#linkedin-status").textContent = "";
+    document.querySelector("#linkedin-review").hidden = false;
+  } catch (error) {
+    document.querySelector("#share-error").textContent = error.message || "Could not prepare the LinkedIn post.";
+  } finally { button.disabled = false; }
+});
+document.querySelector("#copy-linkedin-caption").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(document.querySelector("#linkedin-caption").textContent);
+    document.querySelector("#linkedin-status").textContent = "Caption copied. Paste it into your LinkedIn post.";
+  } catch {
+    document.querySelector("#linkedin-status").textContent = "Could not copy. Select and copy the caption above.";
+  }
+});
+document.querySelector("#download-linkedin-image").addEventListener("click", () => {
+  const download = document.createElement("a");
+  download.href = linkedinPreviewUrl;
+  download.download = "proofly-demo-credential.png";
+  download.click();
+  document.querySelector("#linkedin-status").textContent = "Image downloaded. Attach it to your LinkedIn post.";
+});
+document.querySelector("#share-linkedin-image").addEventListener("click", async () => {
+  try {
+    await navigator.share({ files: [linkedinFile], text: document.querySelector("#linkedin-caption").textContent });
+    document.querySelector("#linkedin-status").textContent = "Share sheet opened. Check the image and caption in your chosen app before posting.";
+  } catch (error) {
+    if (error.name !== "AbortError") document.querySelector("#linkedin-status").textContent = "Could not open sharing. Download the image and copy the caption instead.";
+  }
 });
 document.querySelector("#copy-share").addEventListener("click", async () => {
   try {
@@ -549,6 +611,33 @@ document.querySelector("#copy-share").addEventListener("click", async () => {
   } catch {
     document.querySelector("#share-error").textContent = "Copy unavailable. Select and copy the link above.";
   }
+});
+document.querySelector("#native-share").addEventListener("click", async () => {
+  try {
+    await navigator.share({ title: "Proofly fictional demo credential", text: "View this fictional demo credential on Proofly.", url: document.querySelector("#share-link").href });
+  } catch (error) {
+    if (error.name !== "AbortError") document.querySelector("#share-error").textContent = "Could not open sharing. Copy the link instead.";
+  }
+});
+document.querySelector("#download-share-card").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  document.querySelector("#share-error").textContent = "";
+  try {
+    const result = await verifyCredential(shareToken, issuer.publicKey);
+    if (!result.valid) throw new Error("This demo credential could not be verified.");
+    const link = document.querySelector("#share-link").href;
+    const blob = await makeShareCard(result.payload, link, document.querySelector("#share-qr").src);
+    const objectUrl = URL.createObjectURL(blob);
+    const download = document.createElement("a");
+    download.href = objectUrl;
+    download.download = "proofly-demo-credential.png";
+    download.click();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    document.querySelector("#share-error").textContent = "Image downloaded. To share on Instagram, upload it there and add the verification link separately.";
+  } catch (error) {
+    document.querySelector("#share-error").textContent = error.message || "Could not create the share image.";
+  } finally { button.disabled = false; }
 });
 document.querySelector("#example-job").addEventListener("click", () => {
   document.querySelector("#job-description").value = jobExample;
