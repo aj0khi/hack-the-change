@@ -65,6 +65,7 @@ This app is a Node.js/Express web app, not a static-only site. Hostinger managed
    | `AUTH0_AUDIENCE` | Exact Identifier of your Auth0 API |
    | `STRIPE_SECRET_KEY` | Optional; use a Stripe test key for a demo, or leave unset |
    | `VERIFICATION_DB` | Optional; a writable persistent path if your plan provides one |
+   | `DEMO_CREDENTIAL_DB` | A writable, private, persistent SQLite path for the demo issuer key and published credentials |
 
    The Employer Lens also needs its AI and Adzuna variables; see [Employer Lens Setup](#employer-lens-setup).
 5. In Auth0, add `https://your-temporary-domain/` to **Allowed Callback URLs** and **Allowed Logout URLs**, and `https://your-temporary-domain` to **Allowed Web Origins**. Keep the existing API Identifier as `AUTH0_AUDIENCE`; it does not need to be your website domain.
@@ -72,7 +73,7 @@ This app is a Node.js/Express web app, not a static-only site. Hostinger managed
 
 For local development, `.env` is ignored by Git; `.env.example` contains placeholders only. Never put Stripe secret keys or other credentials in `.env.example`, source files, screenshots, or commits. Hostinger's [environment-variable guide](https://docs.hostinger.com/node.js/environment-variables) explains setting values through hPanel.
 
-The local SQLite database is not a production database. If you enable account verification, use a persistent writable database path only for a temporary prototype, and be aware that data can be lost when a hosting plan replaces or resets application files. The current identity and organization verification flows are not production-ready; see [Boundaries](#boundaries) before collecting real identity information.
+The SQLite databases are not production databases. Set `DEMO_CREDENTIAL_DB` outside the deployment directory to a private persistent location on Hostinger; otherwise redeploys may delete the signing key and shared records, breaking existing links. Back up this database securely: it contains the private issuer key. Set `VERIFICATION_DB` to a persistent path if using account verification. The current identity and organization verification flows are not production-ready; see [Boundaries](#boundaries) before collecting real identity information.
 
 ## Project Layout
 
@@ -101,9 +102,9 @@ The lens uses Amazon Bedrock with Amazon Nova Lite (`us.amazon.nova-lite-v1:0` b
 
 - `POST /api/lens` (`lens/lens.mjs`): verifies every credential's signature, makes one Bedrock call that extracts requirements and proposes matches, then keeps a match only if its quote is word-for-word in the cited, valid credential (praise never satisfies a technical or credential requirement). Rejected proposals are returned and shown in the UI. Model errors or a 26 s timeout return `{ fallback: true }`. The server allows 20 new lens requests a minute.
 - `GET /api/jobs` (`lens/adzuna.mjs`): at startup fetches a few Calgary searches from Adzuna's Canada endpoint and caches them to `data/adzuna-cache.json` for 12 hours. Adzuna search results usually carry a truncated description; the UI says so and links to the full posting. Adzuna currently returns 500-character excerpts, so paste a full posting when you want a thorough check.
-- **Student view and project suggestions:** choose a job or paste a posting, analyze it, and switch to Student view. The browser uses keyword hints from the posting and verifies its local demo credentials to show related evidence and skills without evidence, then links gaps to up to two fictional projects from `lens/projects.mjs`. Project cards are illustrative, not real placements; a demo vouch is entered separately. Specific tools such as SQL and Excel require their own mention in an evidence quote, rather than treating a general Digital tag as proof. These keyword hints are not a complete list of requirements, an assessment of ability, or a hiring prediction. Check the full posting, especially when Adzuna provides only an excerpt. Student view works independently of Bedrock; Employer view retains its AI or offline analysis.
+- **Student view and project suggestions:** choose a job or paste a posting, analyze it, and switch to Student view. The browser uses keyword hints from the posting and verifies its local demo credentials to show related evidence and skills without evidence, then links gaps to fictional projects from `lens/projects.mjs`. Two ideas are shown initially, with additional matches available under “Show more ideas.” Project cards are illustrative, not real placements; a demo vouch is entered separately. Specific tools such as SQL and Excel require their own mention in an evidence quote, rather than treating a general Digital tag as proof. These keyword hints are not a complete list of requirements, an assessment of ability, or a hiring prediction. Check the full posting, especially when Adzuna provides only an excerpt. Student view works independently of Bedrock; Employer view retains its AI or offline analysis.
 - **Calgary demand:** `/api/jobs` also returns `demand`, a count of how many cached postings mention each Skills for Success skill, using the keyword rules in `lens/skills.mjs`. Suggestions show it as "mentioned in N of 30 Calgary posting excerpts". Because the counts come from excerpts, they undercount.
-- **Saved results and quota:** a successful lens answer for the same posting, credentials and project catalog is saved in `data/lens-cache.json` and reused, marked "saved result", even after a restart. Catalog changes cause a fresh model call rather than reusing old suggestions. Bedrock is billed per token against your AWS credits (Nova Lite is one of the cheapest models); saving results also keeps demo re-runs instant. Saved results only match on the same browser profile, because the credentials and issuer key live in that browser.
+- **Saved results and quota:** a successful lens answer for the same posting, credentials and project catalog is saved in `data/lens-cache.json` and reused, marked "saved result", even after a restart. Catalog changes cause a fresh model call rather than reusing old suggestions. Bedrock is billed per token against your AWS credits (Nova Lite is one of the cheapest models); saving results also keeps demo re-runs instant. Credentials are stored in the browser, while the demo issuer key is stored on the server.
 
 ## Account Verification Setup
 
@@ -126,19 +127,20 @@ The [Badgr API documentation](https://api.badgr.io/swagger-ui/index.html) specif
 ## Demonstrate
 
 1. Explore the fictional projects, then open **Give a vouch**. Type a testimonial, select skills, confirm the words, and proceed to the simulated coordinator review.
-2. Approve the demo credential. The browser signs it with a locally generated Ed25519 key and stores it in IndexedDB.
+2. Approve the demo credential. The server signs it with its demo Ed25519 key; the browser stores the token in IndexedDB.
 3. Open the credential and use **Change a character**, then **Verify signature**. Verification fails after the change.
-4. Open **Employer lens** and use the example job description. Matches show a skill and the exact signed quote; unsupported requirements remain gaps. Click a match to inspect the credential.
+4. On a credential, choose **Share**, read the warning, and choose **Publish and create link**. Scan the QR code on a phone to open the public `/verify/:id` page. The phone needs network access to the configured `APP_ORIGIN` (a localhost URL works only on the host computer).
+5. Open **Employer lens** and use the example job description. Matches show a skill and the exact signed quote; unsupported requirements remain gaps. Click a match to inspect the credential.
 
-The first launch creates a signed fictional example. Removing browser site data deletes credentials and the issuer key. The public verification key is pinned to this browser's demo issuer; another device cannot independently verify these credentials through this prototype.
+The first launch creates a signed fictional example. Existing browser-signed demo credentials can be migrated after the user consents to sending their contents to the server for re-signing. Sharing is opt-in: anyone with the link can see all displayed details, and links cannot currently be revoked. Clearing browser data removes local tokens but not published records.
 
 ## Boundaries
 
 - People, organizations, projects, and the example job are fictional. The simulated approval has no authentication and does not prove that a real organization or person approved anything.
-- The signature is a compact Ed25519 JWS with a non-extractable private key stored in IndexedDB. This is a tamper-evident demo, **not** an Open Badges 3.0 credential or a production issuer identity. Code running on the same origin can request signatures; real deployment needs server-side key management, authenticated issuers, public key discovery, revocation, and access controls.
+- The signature is a compact Ed25519 JWS; the private demo key and published tokens are stored in the server's SQLite database. Anyone can request a demo signature; it does not authenticate issuers or attest that claims are true. This is **not** an Open Badges 3.0 credential or a production issuer identity. Real deployment requires managed keys, authenticated issuers, public key discovery, revocation, consent, and access controls.
 - The lens uses Amazon Nova Lite to extract requirements and propose matches, with a code-side word-for-word grounding check; it falls back to local keyword rules when the model is unavailable. It is not a hiring recommendation. Skill selections are made by the witness and are not independently validated; exact quotes are checked against the transcript, which does not establish that the selected skill is actually demonstrated.
 - Browser speech recognition is optional and may transmit audio to the browser's speech provider. Review its privacy policy before using it. Typing is available; the app does not record or store audio itself. Avoid entering sensitive information.
-- There is no Postgres, public sharing, actual partner organization integration, or production backing issuance. These need separate infrastructure, credentials, consent, and partner validation.
+- There is no Postgres, actual partner organization integration, or production backing issuance. Public links are for fictional demo content only.
 - The nine skill labels follow the [Skills for Success model](https://alis.alberta.ca/inspire-and-motivate/the-9-skills-for-success/the-skills-for-success-model). They are not officially assessed or endorsed.
 
 ## Checks

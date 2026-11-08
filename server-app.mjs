@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { inspectBadgrAssertion } from './verification/badgr.mjs';
 import { runLens } from './lens/lens.mjs';
 import { projects } from './lens/projects.mjs';
+import QRCode from 'qrcode';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const LENS_CACHE_MAX = 100;
@@ -52,7 +53,7 @@ function publicStatus(store, subject) {
  * getJobs: async () => Adzuna snapshot for /api/jobs.
  * lensCache / onLensCacheChange: saved lens answers keyed by request, so re-runs don't spend model quota.
  */
-export function createApp({ config, store, authenticate, getUserInfo, stripe, badgeFetcher, lens = {}, getJobs, lensCache = new Map(), onLensCacheChange }) {
+export function createApp({ config, store, demoCredentials, authenticate, getUserInfo, stripe, badgeFetcher, lens = {}, getJobs, lensCache = new Map(), onLensCacheChange }) {
   const app = express();
   app.disable('x-powered-by');
   app.use('/api', (_request, response, next) => { response.set('Cache-Control', 'no-store'); next(); });
@@ -84,6 +85,30 @@ export function createApp({ config, store, authenticate, getUserInfo, stripe, ba
   });
 
   app.use(express.json({ limit: '8kb' }));
+  app.get('/api/demo-credentials/issuer', (_request, response) => {
+    if (!demoCredentials) return response.status(503).json({ error: 'Demo signing is unavailable.' });
+    response.json({ publicKey: demoCredentials.publicKey });
+  });
+  app.post('/api/demo-credentials/issue', async (request, response) => {
+    if (!demoCredentials) return response.status(503).json({ error: 'Demo signing is unavailable.' });
+    try { response.status(201).json({ token: await demoCredentials.issue(request.body) }); }
+    catch (error) {
+      if (error instanceof TypeError) return response.status(400).json({ error: error.message });
+      console.error('[demo credentials] signing failed:', error);
+      response.status(503).json({ error: 'Could not sign the demo credential.' });
+    }
+  });
+  app.post('/api/demo-credentials/share', async (request, response) => {
+    if (!demoCredentials) return response.status(503).json({ error: 'Demo sharing is unavailable.' });
+    try {
+      const id = await demoCredentials.publish(request.body?.token);
+      if (!id) return response.status(400).json({ error: 'Only valid server-signed demo credentials can be shared.' });
+      response.json({ url: `${config.appOrigin}/verify/${id}`, qrUrl: `/verify/${id}/qr.png` });
+    } catch (error) {
+      console.error('[demo credentials] sharing failed:', error);
+      response.status(503).json({ error: 'Could not share the demo credential.' });
+    }
+  });
   app.get('/api/config', (_request, response) => response.json({
     enabled: Boolean(authenticate && getUserInfo),
     identityEnabled: Boolean(stripe),
@@ -92,6 +117,35 @@ export function createApp({ config, store, authenticate, getUserInfo, stripe, ba
     auth0Audience: config.auth0Audience || null,
   }));
   app.get('/healthz', (_request, response) => response.json({ status: 'ok' }));
+
+  app.get('/verify/:id/qr.png', async (request, response) => {
+    if (!demoCredentials) return response.status(503).send('Demo verification is unavailable.');
+    try {
+      const result = await demoCredentials.get(request.params.id);
+      if (!result) return response.status(404).send('Credential not found.');
+      if (!result.valid) return response.status(422).send('Credential signature is invalid.');
+      response.set('Cache-Control', 'no-store').type('png');
+      return response.send(await QRCode.toBuffer(`${config.appOrigin}/verify/${request.params.id}`, { width: 320, margin: 2 }));
+    } catch (error) {
+      console.error('[demo credentials] QR generation failed:', error);
+      return response.status(503).send('Could not generate the QR code.');
+    }
+  });
+  app.get('/verify/:id', async (request, response) => {
+    if (!demoCredentials) return response.status(503).send('Demo verification is unavailable.');
+    try {
+      const result = await demoCredentials.get(request.params.id);
+      if (!result) return response.status(404).send('Credential not found.');
+      response.set({ 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'", 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' });
+      if (!result.valid) return response.status(422).type('html').send('<!doctype html><title>Invalid credential</title><h1>Signature invalid</h1><p>This credential could not be verified.</p>');
+      const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+      const p = result.payload;
+      return response.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Verify demo credential | Proofly</title><style>body{margin:0;background:#f7f4f9;color:#30273a;font:16px/1.6 system-ui,sans-serif}main{max-width:620px;margin:6vh auto;padding:24px}article{background:white;border:1px solid #e5dfeb;border-radius:20px;padding:clamp(22px,6vw,42px);box-shadow:0 12px 40px #362a4512}h1{font-size:clamp(26px,6vw,36px);line-height:1.15}.eyebrow{letter-spacing:.12em;font-size:12px;font-weight:700;color:#685576}.status{background:#eee9f6;color:#453455;border-radius:10px;padding:12px;font-weight:700}blockquote{margin:24px 0;padding:16px;border-left:3px solid #a68fc0;background:#f8f5fb}dt{font-weight:700}dd{margin:0 0 12px}.note{font-size:14px;color:#62586c}</style></head><body><main><p class="eyebrow">PROOFLY · PUBLIC DEMO CREDENTIAL</p><article><h1>${escape(p.title)}</h1><p class="status">Signature valid ✓</p><p class="note">Checked against this server's demo issuer key on this visit.</p><blockquote>“${escape(p.transcript)}”<br>— ${escape(p.witness)}, demo witness</blockquote><dl><dt>Student</dt><dd>${escape(p.student)}</dd><dt>Issuing organization</dt><dd>${escape(p.issuer)}</dd><dt>Skills</dt><dd>${p.mappings.map(m => escape(m.skill)).join(', ')}</dd><dt>Issued</dt><dd>${escape(p.issuedAt)}</dd></dl><p class="note">Fictional demo only. A valid signature shows that this server signed these words and they have not changed; it does not verify the witness, organization, or truth of the work. Not an employment credential.</p></article></main></body></html>`);
+    } catch (error) {
+      console.error('[demo credentials] verification failed:', error);
+      return response.status(503).send('Could not verify the demo credential.');
+    }
+  });
 
   app.post('/api/badgr/assertion', async (request, response) => {
     try {

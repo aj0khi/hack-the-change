@@ -301,8 +301,8 @@
                 </div>
                 <h2>Proof you can<br />look closer at.</h2>
                 <p>
-                  Each credential is signed using a demo issuer key stored on
-                  this device. Editing its contents breaks the signature.
+                  Each credential is signed using the server's demo issuer key.
+                  Editing its contents breaks the signature.
                 </p>
                 <ul>
                   <li><i data-lucide="check"></i> Signed with Ed25519</li>
@@ -311,7 +311,7 @@
                     transcript
                   </li>
                   <li>
-                    <i data-lucide="check"></i> No account or personal data sent
+                    <i data-lucide="check"></i> Sharing is optional and public
                   </li>
                 </ul>
                 <div class="explain-foot">DEMO ONLY · NOT AN OPEN BADGE</div>
@@ -541,7 +541,7 @@
                   ></label
                 >
                 <div class="inline-note compact">
-                  <i data-lucide="lock-keyhole"></i> Saved in this browser only.
+                  <i data-lucide="lock-keyhole"></i> Demo text is sent to the server for signing.
                   Don't enter sensitive information.
                 </div>
                 <button type="submit" class="button primary submit-vouch">
@@ -624,6 +624,19 @@
         </div>
         <p id="verify-result" role="status"></p>
       </div>
+    </dialog>
+    <dialog id="share-dialog" aria-labelledby="share-title">
+      <div class="dialog-header"><div><div class="overline">PUBLIC DEMO LINK</div><h2 id="share-title">Share this credential</h2></div>
+        <button class="icon-button" id="close-share" type="button" aria-label="Close sharing">×</button></div>
+      <p>Publishing makes the name, witness, words and skills available to anyone with the link. Links cannot currently be revoked. Share fictional demo information only.</p>
+      <button class="button primary" id="publish-credential" type="button">Publish and create link</button>
+      <div id="share-result" hidden>
+        <p>Scan the QR code or open this public link:</p>
+        <img id="share-qr" width="240" height="240" alt="QR code for the public credential" />
+        <p class="share-link"><a id="share-link" target="_blank" rel="noopener noreferrer"></a></p>
+        <button class="button subtle" id="copy-share" type="button">Copy link</button>
+      </div>
+      <p id="share-error" role="status"></p>
     </dialog>
     <dialog id="approval-dialog" aria-labelledby="approval-title">
       <div class="dialog-header">

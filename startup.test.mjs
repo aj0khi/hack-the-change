@@ -17,7 +17,7 @@ test('entry file listens when imported by a hosting wrapper', { timeout: 5000 },
   `;
   const child = spawn(process.execPath, ['--input-type=module', '-e', wrapper], {
     cwd: new URL('.', import.meta.url),
-    env: { PATH: process.env.PATH, PORT: '8766', APP_ORIGIN: 'http://localhost:8766', VERIFICATION_DB: ':memory:' },
+    env: { PATH: process.env.PATH, PORT: '8766', APP_ORIGIN: 'http://localhost:8766', VERIFICATION_DB: ':memory:', DEMO_CREDENTIAL_DB: ':memory:' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const lines = createInterface({ input: child.stdout });

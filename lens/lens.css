@@ -293,6 +293,9 @@
 .pathway-project { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e6deed; }
 .pathway-project span { display: block; color: #655b70; font-size: 12px; }
 .pathway-project p { margin: 5px 0; color: #655b70; line-height: 1.5; }
+.pathway-more { margin-top: 12px; }
+.pathway-more summary { cursor: pointer; color: #51425e; font-weight: 700; }
+.pathway-more summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .pathway-note { border-top: 1px solid var(--line); padding-top: 14px; }
 
 /* Lens accessibility pass: readable sizes and at least 4.5:1 text contrast on white. */

@@ -32,7 +32,30 @@ test("specific tools require a mention in signed evidence, not a generic skill l
 
 test("unknown or unrecognized requirements do not invent projects or evidence", () => {
   assert.deepEqual(buildStudentPathway("Class 5 licence and weekend availability", priya), []);
-  const result = buildStudentPathway("Python development", priya);
+  const result = buildStudentPathway("Kubernetes development", priya);
+  assert.deepEqual(result, []);
+});
+
+test("specific technical gaps provide relevant choices from the catalog", () => {
+  const result = buildStudentPathway("SQL, Excel, spreadsheets, databases, customer service, Python and JavaScript", []);
+  const expected = {
+    SQL: /\bsql\b/i,
+    Excel: /\bexcel\b/i,
+    Spreadsheets: /\bspreadsheet\b|\bgoogle sheets\b/i,
+    Databases: /\bdatabase\b/i,
+    "Customer service": /greet|questions|customer service/i,
+    Python: /\bpython\b/i,
+    JavaScript: /\bjavascript\b/i,
+  };
+  for (const [name, pattern] of Object.entries(expected)) {
+    const skill = result.find((item) => item.name === name);
+    assert.ok(skill.projects.length >= 2, `${name} needs at least two choices`);
+    for (const project of skill.projects) assert.match(project.description, pattern, `${name}: ${project.id}`);
+  }
+});
+
+test("a missing catalog does not invent projects or evidence", () => {
+  const result = buildStudentPathway("Python development", priya, []);
   assert.equal(result.length, 1);
   assert.deepEqual(result[0].evidence, []);
   assert.deepEqual(result[0].projects, []);

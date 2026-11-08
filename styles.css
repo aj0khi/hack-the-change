@@ -1097,6 +1097,8 @@ footer {
 .lens-result .text-link {
   margin-left: 34px;
 }
+.share-link { overflow-wrap: anywhere; }
+#share-qr { max-width: 100%; height: auto; }
 .role-badge {
   display: flex;
   gap: 6px;

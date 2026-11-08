@@ -5,6 +5,7 @@ node_modules/
 *.sqlite-wal
 data/adzuna-cache.json
 data/lens-cache.json
+data/demo-credentials.sqlite*
 .DS_Store
 xcuserdata/
 DerivedData/
