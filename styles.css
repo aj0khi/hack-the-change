@@ -9,6 +9,32 @@
   --font: "DM Sans", sans-serif;
   --display: "Manrope", sans-serif;
 }
+.demo-entry {
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  padding: 0;
+  border: 1px solid #e1dce8;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px #211a302e;
+  color: #30273a;
+}
+.demo-entry::backdrop { background: #171322b8; }
+.demo-entry-content { padding: clamp(24px, 6vw, 40px); }
+.demo-entry-eyebrow { color: #705988; font: 700 11px var(--display); letter-spacing: .12em; }
+.demo-entry h1 { margin: 12px 0 8px; font: 800 clamp(26px, 5vw, 34px)/1.15 var(--display); }
+.demo-entry-content > p { color: #635b6d; }
+.demo-entry-notice { margin: 20px 0; padding: 13px 15px; border-radius: 8px; background: #f4eff8; font-size: 13px; }
+.demo-entry-steps { margin: 0; padding: 0; list-style: none; }
+.demo-entry-steps li { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #ebe6ef; }
+.demo-entry-steps li > span { color: #705988; font-weight: 700; }
+.demo-entry-steps li div { flex: 1; }
+.demo-entry-steps strong, .demo-entry-steps small { display: block; }
+.demo-entry-steps small { color: #70677b; }
+.demo-entry-steps b { color: #705988; font-size: 11px; }
+.demo-entry-status { min-height: 1.5em; font-size: 13px; }
+.demo-entry-action { width: 100%; justify-content: center; }
+.demo-entry-link { display: inline-block; margin-top: 20px; color: #543c72; font-weight: 700; text-decoration: underline; }
+.demo-entry-footnote { margin-bottom: 0; font-size: 12px; }
 .badge-lookup { margin-top: 20px; background: white; border: 1px solid var(--line); border-radius: 6px; padding: 25px; }
 .badge-lookup h2 { font: 800 20px/1.3 var(--display); margin: 20px 0 7px; }
 .badge-lookup p { color: #66776e; font-size: 13px; }

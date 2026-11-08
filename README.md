@@ -126,6 +126,8 @@ The lens uses Groq when `GROQ_API_KEY` is set (model `openai/gpt-oss-120b` by de
 
 ## Account Verification Setup
 
+Both workspaces begin with a simulated sign-in and Stripe Identity walkthrough. It collects no personal information, does not contact either provider, and is not an access-control or identity-verification mechanism. The completed walkthrough is remembered only for the current browser tab. The entry screen also links to the separate configured provider flow below.
+
 Account verification remains disabled until hosted providers are configured. Create an Auth0 Single Page Application and an Auth0 API, enable email verification, and add `http://localhost:8766/` to the application's allowed callback URLs and logout URLs; add `http://localhost:8766` to web origins. Set the API identifier as the audience. Activate Stripe Identity in a Stripe account. Copy `.env.example` to `.env`, configure the values locally without committing secrets, and run `npm start`.
 
 The account page uses Auth0 sign-in and checks the account's email verification with Auth0. Stripe hosts the ID and selfie check; Proofly stores only its session ID and status, not licence images or numbers. The server checks that each session belongs to the authenticated user and uses a document plus matching selfie. Stripe test-mode results are explicitly marked test-only. Identity session attempts are limited per account and requests are rate limited per server process.

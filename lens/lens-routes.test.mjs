@@ -15,7 +15,7 @@ async function start(options) {
 test('serves only the listed static files, including the lens folder', async () => {
   const { server, base } = await start({ demoCredentials: null });
   try {
-    for (const path of ['/', '/app.js', '/lens/lens.css', '/lens/projects.mjs', '/lens/skills.mjs', '/lens/student-pathway.mjs', '/lens/job-example.mjs', '/verification/verification-ui.mjs', '/verification/share-card.mjs'])
+    for (const path of ['/', '/app.js', '/lens/lens.css', '/lens/projects.mjs', '/lens/skills.mjs', '/lens/student-pathway.mjs', '/lens/job-example.mjs', '/verification/verification-ui.mjs', '/verification/demo-entry.mjs', '/verification/share-card.mjs'])
       assert.equal((await fetch(`${base}${path}`)).status, 200, path);
     for (const path of ['/server.mjs', '/lens/lens.mjs', '/lens/bedrock.mjs', '/.env', '/lens/../.env', '/data/lens-cache.json'])
       assert.equal((await fetch(`${base}${path}`)).status, 404, path);
