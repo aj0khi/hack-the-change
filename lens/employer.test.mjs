@@ -129,6 +129,8 @@ test('employer demo student picker returns repeatable fictional signed profiles'
       const credential = await t.credentials.getPublished(link.pathname.split('/').at(-1));
       assert.equal(credential.payload.student, student.name);
       assert.equal(credential.payload.demoProfile, true);
+      assert.equal(student.credentials.length, 1);
+      assert.equal(student.credentials[0].token, credential.token);
     }
   } finally { await t.close(); }
 });
@@ -144,6 +146,7 @@ test('student and employer pages contain their own tools', async () => {
     assert.doesNotMatch(student, /id="badge-lookup-form"|id="employer-form"/);
     assert.match(employer, /id="employer-form"/);
     assert.match(employer, /id="employer-job-select"/);
+    assert.match(employer, /CALGARY JOBS &amp; SAMPLE ROLES/);
     assert.match(employer, /id="employer-job-file"/);
     assert.match(employer, /accept="\.txt,\.md,text\/plain,text\/markdown"/);
     assert.match(employer, /id="employer-student-select"/);
@@ -151,5 +154,8 @@ test('student and employer pages contain their own tools', async () => {
     assert.match(employer, /Leave a blank line between students/);
     assert.match(employer, /id="badge-lookup-form"/);
     assert.doesNotMatch(employer, /id="credentials-list"|id="vouch-form"|id="job-description"/);
+    const samples = await fetch(`${t.base}/lens/employer-job-samples.mjs`);
+    assert.equal(samples.status, 200);
+    assert.match(await samples.text(), /not an active vacancy/);
   } finally { await t.close(); }
 });

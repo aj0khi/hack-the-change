@@ -1,4 +1,5 @@
 import { jobExample } from './job-example.mjs';
+import { employerJobSamples } from './employer-job-samples.mjs';
 import { skillTerms } from './skills.mjs';
 
 const form = document.querySelector('#employer-form');
@@ -16,6 +17,17 @@ const studentHint = document.querySelector('#employer-student-hint');
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 let jobs = [];
 let demoStudents = [];
+
+function populateJobSelect() {
+  jobSelect.innerHTML = '<option value="">Choose a Calgary role…</option>';
+  for (const [index, job] of jobs.entries()) {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = `${job.demo ? 'Sample role (not live) — ' : ''}${job.title} — ${job.company || 'Unknown employer'}`;
+    jobSelect.append(option);
+  }
+  jobSelect.disabled = jobs.length === 0 || button.disabled;
+}
 
 function rankedStudents() {
   const requestedSkills = Object.entries(skillTerms)
@@ -68,19 +80,18 @@ async function loadJobs() {
     if (!response.ok) throw new Error('Job postings could not be loaded.');
     const data = await response.json();
     jobs = Array.isArray(data.jobs) ? data.jobs : [];
-    jobSelect.innerHTML = '<option value="">Choose a posting from Adzuna…</option>';
-    for (const [index, job] of jobs.entries()) {
-      const option = document.createElement('option');
-      option.value = String(index);
-      option.textContent = `${job.title} — ${job.company || 'Unknown employer'}`;
-      jobSelect.append(option);
+    if (jobs.length) {
+      populateJobSelect();
+      jobSource.textContent = 'Select a Calgary posting, paste your own, or use the fictional example.';
+    } else {
+      jobs = employerJobSamples;
+      populateJobSelect();
+      jobSource.textContent = 'Live Calgary postings are unavailable. These clearly labelled sample roles are fictional and are not active vacancies.';
     }
-    jobSelect.disabled = jobs.length === 0 || button.disabled;
-    jobSource.textContent = jobs.length ? 'Select a posting, paste your own, or use the fictional example.' : 'No Calgary postings are available. Paste a job or use the fictional example.';
   } catch {
-    jobSelect.innerHTML = '<option value="">Postings unavailable</option>';
-    jobSelect.disabled = true;
-    jobSource.textContent = 'Could not load Calgary postings. Paste a job or use the fictional example.';
+    jobs = employerJobSamples;
+    populateJobSelect();
+    jobSource.textContent = 'Could not load live Calgary postings. These clearly labelled sample roles are fictional and are not active vacancies.';
   }
 }
 
@@ -125,10 +136,12 @@ jobSelect.addEventListener('change', () => {
   if (!job) return;
   jobField.value = `${job.title} — ${job.company}, ${job.location}\n\n${job.description}`;
   jobFile.value = '';
-  jobSource.textContent = `Adzuna posting${job.snippet ? ' (short excerpt; paste the full posting for a fuller check)' : ''}.`;
+  jobSource.textContent = job.demo
+    ? 'Fictional Calgary sample role for demonstration only; this is not a live job posting.'
+    : `Adzuna posting${job.snippet ? ' (short excerpt; paste the full posting for a fuller check)' : ''}.`;
   try {
     const url = new URL(job.url);
-    if (url.protocol === 'https:' || url.protocol === 'http:') {
+    if (!job.demo && (url.protocol === 'https:' || url.protocol === 'http:')) {
       const link = document.createElement('a');
       link.href = url.href;
       link.target = '_blank';

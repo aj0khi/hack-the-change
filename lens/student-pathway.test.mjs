@@ -30,6 +30,16 @@ test("specific tools require a mention in signed evidence, not a generic skill l
   }
 });
 
+test("shared fictional student evidence links back to its public verified credential", () => {
+  const url = "https://proofly.example/verify/demo-credential";
+  const result = buildStudentPathway("Communication", [{
+    token: "signed-demo-token",
+    sharedUrl: url,
+    payload: { mappings: [{ skill: "Communication", quote: "Explained each step clearly." }] },
+  }]);
+  assert.equal(result[0].evidence[0].sharedUrl, url);
+});
+
 test("unknown or unrecognized requirements do not invent projects or evidence", () => {
   assert.deepEqual(buildStudentPathway("Class 5 licence and weekend availability", priya), []);
   const result = buildStudentPathway("Kubernetes development", priya);

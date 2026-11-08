@@ -22,6 +22,7 @@ const STATIC_FILES = {
   '/employer': 'employer.html',
   '/employer.html': 'employer.html',
   '/lens/employer-ui.mjs': 'lens/employer-ui.mjs',
+  '/lens/employer-job-samples.mjs': 'lens/employer-job-samples.mjs',
   '/lens/job-example.mjs': 'lens/job-example.mjs',
   '/styles.css': 'styles.css',
   '/robots.txt': 'robots.txt',

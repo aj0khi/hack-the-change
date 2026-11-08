@@ -220,6 +220,7 @@ export async function createDemoCredentialStore(filename, { env = {} } = {}) {
           name: profile.name,
           skills: [...new Set(credentials.flatMap(credential => credential.payload.mappings.map(mapping => mapping.skill)))],
           links: ids.map(id => `${appOrigin}/verify/${id}`),
+          credentials: credentials.map(credential => ({ token: credential.token })),
         });
       }
       return listed;

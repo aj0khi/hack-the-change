@@ -21,8 +21,8 @@ function postingContext(posting, pattern) {
 
 // Credentials passed here must already have been verified against the demo issuer key.
 export function buildStudentPathway(posting, validCredentials, catalog = projects) {
-  const evidence = validCredentials.flatMap(({ index, payload }) =>
-    payload.mappings.map(({ skill, quote }) => ({ skill, quote, index })),
+  const evidence = validCredentials.flatMap(({ index, payload, sharedUrl }) =>
+    payload.mappings.map(({ skill, quote }) => ({ skill, quote, index, sharedUrl })),
   );
   const catalogById = new Map(catalog.map((project) => [project.id, project]));
   const definitions = [

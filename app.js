@@ -3,6 +3,7 @@
 import { alterCredential } from "./trust.mjs";
 import { projects, communityVenues, calgaryAreas, atVenue } from "./lens/projects.mjs";
 import { skillTerms } from "./lens/skills.mjs";
+import { employerJobSamples } from "./lens/employer-job-samples.mjs";
 import { buildStudentPathway } from "./lens/student-pathway.mjs";
 import { makeShareCard } from "./verification/share-card.mjs";
 import { linkedinCaption } from "./verification/linkedin-caption.mjs";
@@ -32,6 +33,8 @@ const examples = {
 import { jobExample } from "./lens/job-example.mjs";
 let jobPostings = [];
 let jobDemand; // { total, counts: { [skill]: n } } from /api/jobs
+let fictionalStudentProfiles = [];
+let fictionalStudentCredentials = [];
 
 // "Builds Digital: mentioned in 12 of 30 Calgary posting excerpts" for a project's most-asked-for skill.
 function demandLine(skills) {
@@ -172,6 +175,7 @@ async function initialize() {
       } catch { /* keep the saved tokens unchanged */ }
     }
     await writeState("credentials", credentials);
+    await loadFictionalStudentProfiles();
     await renderCredentials();
     renderLens();
   } catch (error) {
@@ -249,6 +253,48 @@ async function verifiedCredentials() {
   return (await checkedCredentials()).filter((check) => check.valid && check.status === "verified");
 }
 
+async function loadFictionalStudentProfiles() {
+  const note = document.querySelector("#student-lens-person-note");
+  try {
+    const response = await fetch("/api/employer/demo-students", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Fictional students could not be loaded.");
+    const profiles = Array.isArray(data.students) ? data.students : [];
+    const entries = profiles.flatMap((profile) =>
+      (Array.isArray(profile.credentials) ? profile.credentials : [])
+        .filter((credential) => typeof credential.token === "string")
+        .map((credential) => ({ name: profile.name, token: credential.token })),
+    );
+    const results = await refreshVerification(entries.map(({ token }) => token), { force: true });
+    fictionalStudentCredentials = entries.flatMap((entry, index) => {
+      const result = results[index];
+      if (!result?.valid || result.status !== "verified" ||
+        result.credential?.student !== entry.name || result.credential.demoProfile !== true) return [];
+      if (!/^[A-Za-z0-9_-]{16,64}$/.test(result.credentialId || "")) return [];
+      return [{
+        token: entry.token,
+        payload: result.credential,
+        sharedUrl: new URL(`/verify/${result.credentialId}`, location.origin).href,
+      }];
+    });
+    const availableNames = new Set(fictionalStudentCredentials.map(({ payload }) => payload.student));
+    fictionalStudentProfiles = profiles.filter(({ name }) => availableNames.has(name));
+    note.textContent = fictionalStudentProfiles.length
+      ? "Choose a fictional student to explore their signed demo evidence. Names are not identity verification."
+      : "No server-verified fictional profiles are available. Your own signed demo evidence can still be selected.";
+  } catch (error) {
+    fictionalStudentProfiles = [];
+    fictionalStudentCredentials = [];
+    note.textContent = `Fictional demo students could not be loaded: ${error.message} Your own saved demo evidence is still available.`;
+  }
+}
+
+async function studentCredentials(student) {
+  const local = (await verifiedCredentials()).filter(({ payload }) => payload.student === student);
+  const shared = fictionalStudentCredentials.filter(({ payload }) => payload.student === student);
+  return [...local, ...shared];
+}
+
 
 
 function skillsMarkup(payload) {
@@ -259,11 +305,15 @@ async function renderCredentials() {
   const verified = await verifiedCredentials();
   const studentSelect = document.querySelector("#student-lens-person");
   const selectedStudent = studentSelect.value;
-  const students = [...new Set(verified.map(({ payload }) => payload.student))];
+  const students = [...new Set([
+    ...verified.map(({ payload }) => payload.student),
+    ...fictionalStudentProfiles.map(({ name }) => name),
+  ])];
   studentSelect.replaceChildren();
-  if (!students.length) studentSelect.add(new Option("No signed demo credentials", ""));
+  studentSelect.add(new Option(students.length ? "Choose a fictional student…" : "No signed demo credentials", ""));
   for (const student of students) studentSelect.add(new Option(student, student));
   if (students.includes(selectedStudent)) studentSelect.value = selectedStudent;
+  else if (students.length) studentSelect.value = students[0];
   document.querySelectorAll("[data-count]").forEach((element) => {
     element.textContent = verified.length;
   });
@@ -309,17 +359,17 @@ async function openCredential(index) {
 let lastLens;
 let lensRender = 0;
 const DISCLAIMER_STUDENT =
-  "Student view uses keyword hints and this browser's signed demo evidence, not an assessment of your ability or a hiring recommendation. Project ideas are fictional. Review the full posting, including qualifications we may miss.";
+  "Student view uses keyword hints and signed evidence from your selected fictional demo profile, not an assessment of your ability or a hiring recommendation. Project ideas are fictional. Review the full posting, including qualifications we may miss.";
 
 async function renderStudentPathway(input, target, renderId) {
   const student = document.querySelector("#student-lens-person").value;
-  const validCredentials = (await verifiedCredentials()).filter(({ payload }) => payload.student === student);
+  const validCredentials = await studentCredentials(student);
   if (renderId !== lensRender) return;
   const skills = buildStudentPathway(input, validCredentials);
   const supported = skills.filter((skill) => skill.evidence.length);
   const gaps = skills.filter((skill) => !skill.evidence.length);
   const evidenceCards = supported.map((skill) =>
-    `<article class="pathway-card"><h4>${escapeHTML(skill.name)}</h4><p class="pathway-context">Posting mentions: “${escapeHTML(skill.context)}”</p>${skill.evidence.map((item) => `<p class="result-desc">Demo evidence · ${escapeHTML(item.skill)}: “${escapeHTML(item.quote)}”</p><button class="text-link" type="button" data-credential="${item.index}">View signed evidence ${icon("arrow-up-right")}</button>`).join("")}</article>`,
+    `<article class="pathway-card"><h4>${escapeHTML(skill.name)}</h4><p class="pathway-context">Posting mentions: “${escapeHTML(skill.context)}”</p>${skill.evidence.map((item) => `<p class="result-desc">Demo evidence · ${escapeHTML(item.skill)}: “${escapeHTML(item.quote)}”</p>${item.sharedUrl ? `<a class="text-link" href="${escapeHTML(item.sharedUrl)}" target="_blank" rel="noopener noreferrer">View signed evidence ${icon("arrow-up-right")}</a>` : `<button class="text-link" type="button" data-credential="${item.index}">View signed evidence ${icon("arrow-up-right")}</button>`}`).join("")}</article>`,
   ).join("");
   const projectMarkup = (project) => `<div class="pathway-project"><div><strong>${escapeHTML(project.title)}</strong><span>${escapeHTML(project.organization)} · ${escapeHTML(project.time)}</span><p>${escapeHTML(project.description)}</p>${demandLine(project.skills)}</div><button class="text-link" type="button" data-explore-project="${escapeHTML(project.id)}">View project ${icon("arrow-up-right")}</button></div>`;
   const gapCards = gaps.map((skill) =>
@@ -542,27 +592,39 @@ document.querySelector("#example-job").addEventListener("click", () => {
 });
 
 async function loadJobPostings() {
+  const picker = document.querySelector("#job-picker");
+  const select = document.querySelector("#job-select");
+  const source = document.querySelector("#job-source");
   try {
     const response = await fetch("/api/jobs");
-    if (!response.ok) return;
+    if (!response.ok) throw new Error("Calgary postings are unavailable.");
     const data = await response.json();
     jobPostings = Array.isArray(data.jobs) ? data.jobs : [];
     jobDemand = data.demand?.total ? data.demand : undefined;
     renderLens();
-    if (!jobPostings.length) return;
-    const select = document.querySelector("#job-select");
-    select.insertAdjacentHTML(
-      "beforeend",
-      jobPostings
-        .map(
-          (job, index) =>
-            `<option value="${index}">${escapeHTML(job.title)} — ${escapeHTML(job.company || "Unknown employer")}</option>`,
-        )
-        .join(""),
-    );
-    document.querySelector("#job-picker").hidden = false;
+    if (jobPostings.length) {
+      select.replaceChildren(new Option("Choose a Calgary posting…", ""));
+      for (const [index, job] of jobPostings.entries()) {
+        select.add(new Option(`${job.title} — ${job.company || "Unknown employer"}`, String(index)));
+      }
+      source.textContent = "Live Calgary postings via Adzuna.";
+    } else {
+      jobPostings = employerJobSamples;
+      select.replaceChildren(new Option("Choose a fictional Calgary sample role…", ""));
+      for (const [index, job] of jobPostings.entries()) {
+        select.add(new Option(`Sample role (not live) — ${job.title}`, String(index)));
+      }
+      source.textContent = "Live Calgary postings are unavailable. These sample roles are fictional and are not active vacancies.";
+    }
+    picker.hidden = false;
   } catch {
-    /* static hosting or offline: picker stays hidden */
+    jobPostings = employerJobSamples;
+    select.replaceChildren(new Option("Choose a fictional Calgary sample role…", ""));
+    for (const [index, job] of jobPostings.entries()) {
+      select.add(new Option(`Sample role (not live) — ${job.title}`, String(index)));
+    }
+    source.textContent = "Could not load live Calgary postings. These sample roles are fictional and are not active vacancies.";
+    picker.hidden = false;
   }
 }
 
@@ -575,7 +637,11 @@ document.querySelector("#job-select").addEventListener("change", (event) => {
   }
   document.querySelector("#job-description").value =
     `${job.title} — ${job.company}, ${job.location}\n\n${job.description}`;
-  source.innerHTML = `Live posting via Adzuna${job.snippet ? " (Adzuna shares a short excerpt; paste the full text for a fuller check)" : ""}. ${job.url ? `<a href="${escapeHTML(job.url)}" target="_blank" rel="noopener noreferrer">Open the full posting</a>` : ""}`;
+  if (job.demo) {
+    source.textContent = "Fictional Calgary sample role for demonstration only; this is not a live job posting.";
+  } else {
+    source.innerHTML = `Live posting via Adzuna${job.snippet ? " (Adzuna shares a short excerpt; paste the full text for a fuller check)" : ""}. ${job.url ? `<a href="${escapeHTML(job.url)}" target="_blank" rel="noopener noreferrer">Open the full posting</a>` : ""}`;
+  }
   analyzeJob();
 });
 document.querySelector("#job-description").addEventListener("input", () => {
@@ -608,7 +674,7 @@ document.querySelector("#student-ai-analyze").addEventListener("click", async ()
   try {
     if (!issuer) throw new Error("Demo credential verification is unavailable. Try again when the server is ready.");
     const student = document.querySelector("#student-lens-person").value;
-    const valid = (await verifiedCredentials()).filter(({ payload }) => payload.student === student);
+    const valid = await studentCredentials(student);
     if (renderId !== lensRender) return;
     const response = await fetch("/api/lens", {
       method: "POST",
