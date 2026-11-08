@@ -75,6 +75,10 @@ For local development, `.env` is ignored by Git; `.env.example` contains placeho
 
 The SQLite databases are not production databases. Set `DEMO_CREDENTIAL_DB` outside the deployment directory to a private persistent location on Hostinger; otherwise redeploys may delete the signing key and shared records, breaking existing links. Back up this database securely: it contains the private issuer key. Set `VERIFICATION_DB` to a persistent path if using account verification. The current identity and organization verification flows are not production-ready; see [Boundaries](#boundaries) before collecting real identity information.
 
+## Sharing to LinkedIn
+
+Publish a fictional credential and select **Prepare LinkedIn post** to review its image and caption. On supported devices, **Share image to an app** opens the native share sheet with both; choose LinkedIn if available, verify what transferred, and post from LinkedIn. Share targets can omit the image or text and are not controlled by Proofly. Alternatively, copy the caption and download the image, then attach and paste them into a LinkedIn post. **Open LinkedIn with link** opens a link-only composer and may not produce a preview if LinkedIn cannot crawl the site. No LinkedIn developer credentials are needed; Proofly no longer posts on the user's behalf. Existing LinkedIn app authorizations can be revoked in LinkedIn's settings.
+
 ## Project Layout
 
 ```
@@ -131,7 +135,7 @@ The [Badgr API documentation](https://api.badgr.io/swagger-ui/index.html) specif
 2. Approve the demo credential. The server signs it with its demo Ed25519 key; the browser stores the token in IndexedDB.
 3. Open the credential and use **Change a character**, then **Verify signature**. Verification fails after the change.
 4. On a credential, choose **Share**, read the warning, and choose **Publish and create link**. Scan the QR code on a phone to open the public `/verify/:id` page. The phone needs network access to the configured `APP_ORIGIN` (a localhost URL works only on the host computer).
-   After publishing, **Share on LinkedIn** opens LinkedIn's share composer with the public link; **More sharing options** uses the device's share sheet when available. **Download demo image** creates a PNG with a QR code: upload it manually to Instagram and add the link separately. Nothing is posted automatically or added as a LinkedIn certification.
+   After publishing, **Prepare LinkedIn post** shows a caption and image with a QR code for review and sharing as described above; **More sharing options** uses the device's share sheet when available. **Download demo image** creates a PNG for manual sharing. Proofly does not post directly or add a LinkedIn certification.
    The verification page supplies generic Open Graph metadata and a public preview image for social platforms. Previews never include the witness or testimonial, but anyone with the link (including platform crawlers) can access the full published page. The app serves a `robots.txt` explicitly allowing LinkedInBot while preserving the previous Googlebot restriction; a hosting CDN may override it. After deployment, check the public `/robots.txt` contains the LinkedInBot rule, then use [LinkedIn Post Inspector](https://www.linkedin.com/post-inspector/) to refresh the URL. The verification page retains its `noindex, nofollow` header; preview availability also depends on LinkedIn and hosting access to the page.
 5. Open **Employer lens** and use the example job description. Matches show a skill and the exact signed quote; unsupported requirements remain gaps. Click a match to inspect the credential.
 

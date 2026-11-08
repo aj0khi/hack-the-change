@@ -649,10 +649,25 @@
         <p class="share-link"><a id="share-link" target="_blank" rel="noopener noreferrer"></a></p>
         <button class="button subtle" id="copy-share" type="button">Copy link</button>
         <div class="share-platforms">
-          <a class="button primary" id="share-linkedin" target="_blank" rel="noopener noreferrer">Share on LinkedIn</a>
+          <button class="button primary" id="prepare-linkedin" type="button">Prepare LinkedIn post</button>
           <button class="button subtle" id="native-share" type="button" hidden>More sharing options</button>
           <button class="button subtle" id="download-share-card" type="button">Download demo image</button>
         </div>
+        <section id="linkedin-review" hidden aria-labelledby="linkedin-review-title">
+          <h3 id="linkedin-review-title">Review your LinkedIn post</h3>
+          <p class="share-hint">Choose how to share below. You finish and post on LinkedIn; Proofly will never post for you. The image contains credential details and a QR code.</p>
+          <img id="linkedin-image-preview" alt="Preview of the fictional demo credential image" />
+          <pre id="linkedin-caption"></pre>
+          <div class="share-platforms">
+            <button class="button primary" id="share-linkedin-image" type="button" hidden>Share image to an app</button>
+            <button class="button subtle" id="copy-linkedin-caption" type="button">Copy caption</button>
+            <button class="button subtle" id="download-linkedin-image" type="button">Download image</button>
+            <a class="button subtle" href="https://www.linkedin.com/feed/" target="_blank" rel="noopener noreferrer">Open LinkedIn</a>
+            <a class="button subtle" id="share-linkedin" target="_blank" rel="noopener noreferrer">Open LinkedIn with link</a>
+          </div>
+          <p class="share-hint">On a supported device, choose LinkedIn in the share sheet. Some apps may not transfer the caption or image. Otherwise, copy the caption and download the image, then attach and paste them in a LinkedIn post. The link-only button cannot attach them automatically; its preview may not load.</p>
+          <p id="linkedin-status" role="status"></p>
+        </section>
         <p class="share-hint">For Instagram, upload the downloaded image yourself and add the verification link separately. Images and links show fictional demo credentials, not real awards.</p>
       </div>
       <p id="share-error" role="status"></p>
