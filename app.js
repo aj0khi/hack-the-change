@@ -2,10 +2,11 @@ import {
   verifyCredential,
   alterCredential,
 } from "./trust.mjs";
-import { projects, keywordProjectSuggestions } from "./lens/projects.mjs";
+import { projects, keywordProjectSuggestions, communityVenues, calgaryAreas, atVenue } from "./lens/projects.mjs";
 import { skillTerms } from "./lens/skills.mjs";
 import { buildStudentPathway } from "./lens/student-pathway.mjs";
 import { makeShareCard } from "./verification/share-card.mjs";
+import { createExplore } from "./map/explore-map.mjs";
 
 const examples = {
   transcript:
@@ -74,6 +75,10 @@ const announce = (message) => {
 };
 let database;
 let issuer;
+// Community needs posted from the coordinator demo form, saved in this browser like credentials.
+let postedProjects = [];
+const catalog = () => [...projects, ...postedProjects];
+const skillNames = Object.keys(skillTerms);
 let credentials = [];
 let selectedCredential;
 let pendingVouch;
@@ -143,6 +148,7 @@ async function initialize() {
     if (!window.isSecureContext || !crypto.subtle)
       throw new Error("Use localhost or HTTPS for credential signing.");
     database = await openDatabase();
+    await loadPostedProjects();
     const oldIssuer = await readState("issuer");
     const previousServerKey = await readState("server-public-key");
     issuer = await demoRequest("/api/demo-credentials/issuer");
@@ -198,10 +204,11 @@ function showView(name) {
   document.title = `${viewNames[name]} | Proofly`;
   if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
   window.scrollTo({ top: 0, behavior: "instant" });
+  if (name === "projects") explore?.onShow();
 }
 
-function projectCard(project) {
-  return `<article class="project-card" data-project-card="${escapeHTML(project.id)}" tabindex="-1"><span class="project-icon ${project.color}">${icon(project.icon)}</span><div class="project-body"><div class="project-meta">${escapeHTML(project.organization.toUpperCase())} <span>·</span> ${project.time}</div><h3>${escapeHTML(project.title)}</h3><p>${escapeHTML(project.description)}</p><div class="skills-row">${project.skills.map((skill) => `<span class="skill-chip">${escapeHTML(skill)}</span>`).join("")}</div></div><button class="project-arrow" type="button" data-project="${escapeHTML(project.title)}" aria-label="Give a vouch for ${escapeHTML(project.title)}" title="Give a vouch">${icon("arrow-up-right")}</button></article>`;
+function projectCard(project, { selectable = false } = {}) {
+  return `<article class="project-card" data-project-card="${escapeHTML(project.id)}" tabindex="${selectable ? "0" : "-1"}"${selectable ? ' aria-describedby="card-map-hint"' : ""}><span class="project-icon ${project.color}">${icon(project.icon)}</span><div class="project-body"><div class="project-meta">${escapeHTML(project.organization.toUpperCase())} <span>·</span> ${project.time}</div><h3>${escapeHTML(project.title)}</h3><p>${escapeHTML(project.description)}</p><div class="skills-row">${project.skills.map((skill) => `<span class="skill-chip">${escapeHTML(skill)}</span>`).join("")}</div></div><button class="project-arrow" type="button" data-project="${escapeHTML(project.title)}" aria-label="Give a vouch for ${escapeHTML(project.title)}" title="Give a vouch">${icon("arrow-up-right")}</button></article>`;
 }
 
 function renderProjects() {
@@ -209,17 +216,38 @@ function renderProjects() {
     .slice(0, 2)
     .map(projectCard)
     .join("");
-  document.querySelector("#all-projects").innerHTML = projects
-    .map(projectCard)
-    .join("");
+  document.querySelector("#all-projects").innerHTML =
+    '<p class="sr-only" id="card-map-hint">Press Enter to show this project on the map.</p>' +
+    catalog()
+      .map((project) => projectCard(project, { selectable: true }))
+      .join("");
   // The vouch task list comes from the same catalog as the project suggestions.
-  document.querySelector("#vouch-task").innerHTML =
+  const task = document.querySelector("#vouch-task");
+  const chosenTask = task.value;
+  task.innerHTML =
     '<option value="">Choose a project</option>' +
-    projects
+    catalog()
       .map((project) => `<option>${escapeHTML(project.title)}</option>`)
       .join("");
+  task.value = chosenTask;
   refreshIcons();
+  explore?.refresh();
 }
+
+// The skill a gap line is about, for "Find projects that build this skill".
+function gapSkill(text, suggestions) {
+  const direct = skillNames.find((skill) => skillTerms[skill].test(text));
+  if (direct) return direct;
+  const counts = {};
+  for (const suggestion of suggestions ?? [])
+    for (const skill of suggestion.skills ?? []) counts[skill] = (counts[skill] ?? 0) + 1;
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+}
+
+const findProjectsButton = (skill) =>
+  skill && skillNames.includes(skill)
+    ? `<button class="button subtle gap-explore" type="button" data-skill-filter="${escapeHTML(skill)}" aria-label="Find projects that build this skill: ${escapeHTML(skill)}">Find projects that build this skill <span class="kind-tag">${escapeHTML(skill)}</span> ${icon("map-pin")}</button>`
+    : "";
 
 async function verifiedCredentials() {
   if (!issuer) return [];
@@ -311,7 +339,7 @@ function suggestionMarkup(kind, suggestions, keywordBased = false) {
 }
 
 const gapMarkup = (text, kind, suggestions, keywordBased) =>
-  `<div class="lens-result"><div class="lens-result-top"><span class="result-status gap">${icon("minus")}</span><h3>${escapeHTML(text)}${kind ? ` <span class="kind-tag">${escapeHTML(kind)}</span>` : ""}</h3></div><p class="result-desc">No verified evidence yet. This is not a judgment of ability.</p>${suggestionMarkup(kind, suggestions, keywordBased)}</div>`;
+  `<div class="lens-result"><div class="lens-result-top"><span class="result-status gap">${icon("minus")}</span><h3>${escapeHTML(text)}${kind ? ` <span class="kind-tag">${escapeHTML(kind)}</span>` : ""}</h3></div><p class="result-desc">No verified evidence yet. This is not a judgment of ability.</p>${suggestionMarkup(kind, suggestions, keywordBased)}${kind === "credential" || kind === "other" ? "" : findProjectsButton(gapSkill(text, suggestions))}</div>`;
 
 // Offline suggestions: catalog projects sharing a skill the gap line mentions.
 function keywordSuggestions(line) {
@@ -337,7 +365,7 @@ async function renderStudentPathway(input, target, renderId) {
   ).join("");
   const projectMarkup = (project) => `<div class="pathway-project"><div><strong>${escapeHTML(project.title)}</strong><span>${escapeHTML(project.organization)} · ${escapeHTML(project.time)}</span><p>${escapeHTML(project.description)}</p></div><button class="text-link" type="button" data-explore-project="${escapeHTML(project.id)}">View project ${icon("arrow-up-right")}</button></div>`;
   const gapCards = gaps.map((skill) =>
-    `<article class="pathway-card"><h4>${escapeHTML(skill.name)}</h4><p class="pathway-context">Posting mentions: “${escapeHTML(skill.context)}”</p><p class="result-desc">No matching demo evidence yet. This does not mean you lack this skill.</p>${skill.projects.length ? `<div class="pathway-projects"><strong>Fictional practice ideas</strong>${skill.projects.slice(0, 2).map(projectMarkup).join("")}${skill.projects.length > 2 ? `<details class="pathway-more"><summary>Show ${skill.projects.length - 2} more ${skill.projects.length === 3 ? "idea" : "ideas"}</summary>${skill.projects.slice(2).map(projectMarkup).join("")}</details>` : ""}</div>` : `<p class="result-desc">No related demo project yet. Consider another way to practise or document this skill.</p>`}</article>`,
+    `<article class="pathway-card"><h4>${escapeHTML(skill.name)}</h4><p class="pathway-context">Posting mentions: “${escapeHTML(skill.context)}”</p><p class="result-desc">No matching demo evidence yet. This does not mean you lack this skill.</p>${findProjectsButton(skill.name)}${skill.projects.length ? `<div class="pathway-projects"><strong>Fictional practice ideas</strong>${skill.projects.slice(0, 2).map(projectMarkup).join("")}${skill.projects.length > 2 ? `<details class="pathway-more"><summary>Show ${skill.projects.length - 2} more ${skill.projects.length === 3 ? "idea" : "ideas"}</summary>${skill.projects.slice(2).map(projectMarkup).join("")}</details>` : ""}</div>` : `<p class="result-desc">No related demo project yet. Consider another way to practise or document this skill.</p>`}</article>`,
   ).join("");
   target.className = "";
   target.innerHTML = `<div class="pathway-intro" role="status"><strong>Your skill pathway</strong><p>We found ${skills.length} skill ${skills.length === 1 ? "hint" : "hints"} in this text: ${supported.length} with related demo evidence and ${gaps.length} to explore. Keywords can miss context or requirements.</p></div>${skills.length ? `<section class="pathway-section"><h3>Evidence you have <span>${supported.length}</span></h3>${evidenceCards || '<p class="pathway-empty">No related signed demo evidence found for these skills yet.</p>'}</section><section class="pathway-section"><h3>Skills to explore <span>${gaps.length}</span></h3>${gapCards || '<p class="pathway-empty">No evidence gaps among the skills we recognized. Review the full posting for anything missed.</p>'}</section>` : `<p class="pathway-empty">No recognizable skill keywords found. Try the full job posting or review its requirements yourself.</p>`}<p class="pathway-note">Projects are fictional practice ideas, not live opportunities. Only create a demo vouch for work you want to simulate; completing a project here does not create evidence or guarantee a job.</p>`;
@@ -474,9 +502,13 @@ document.addEventListener("click", (event) => {
   const exploreButton = event.target.closest("[data-explore-project]");
   if (exploreButton) {
     showView("projects");
-    const project = [...document.querySelectorAll("#all-projects [data-project-card]")].find((card) => card.dataset.projectCard === exploreButton.dataset.exploreProject);
-    project?.scrollIntoView({ block: "center" });
-    project?.focus({ preventScroll: true });
+    explore.select(exploreButton.dataset.exploreProject, "link");
+  }
+  const skillFilterButton = event.target.closest("[data-skill-filter]");
+  if (skillFilterButton) {
+    showView("projects");
+    explore.setSkill(skillFilterButton.dataset.skillFilter);
+    document.querySelector("#skill-filters .skill-filter.active")?.focus({ preventScroll: true });
   }
   const credentialButton = event.target.closest("[data-credential]");
   if (credentialButton)
@@ -751,6 +783,109 @@ document
     }
   });
 
+// Escape steps back on Explore: selected project → filtered list → every project.
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || document.querySelector("#projects").hidden) return;
+  if (document.querySelector("dialog[open]")) return;
+  if (explore.back()) event.preventDefault();
+});
+
+const NEED_TIMES = ["1–2 HOURS", "2–3 HOURS", "3–4 HOURS", "HALF DAY", "2 HOURS / WEEK"];
+
+// Rebuild a posted project from trusted parts: its location always comes from the public venue list,
+// so stored or typed coordinates and addresses are never used. Same-venue pins are nudged apart.
+function placePostedProject(item, earlier) {
+  const venue = communityVenues.find((entry) => entry.id === item?.venueId);
+  const title = typeof item?.title === "string" ? item.title.trim().slice(0, 80) : "";
+  const description = typeof item?.description === "string" ? item.description.trim().slice(0, 300) : "";
+  const skills = Array.isArray(item?.skills) ? item.skills.filter((skill) => skillNames.includes(skill)) : [];
+  if (!venue || !title || !description || !skills.length || typeof item.id !== "string") return null;
+  const location = atVenue(venue.id);
+  const sharing = earlier.filter((project) => project.venueId === venue.id).length;
+  return {
+    id: item.id,
+    title,
+    description,
+    skills,
+    time: NEED_TIMES.includes(item.time) ? item.time : NEED_TIMES[0],
+    icon: "sprout",
+    color: "lilac",
+    posted: true,
+    ...location,
+    lat: location.lat + sharing * 0.0007,
+    lng: location.lng + sharing * 0.0011,
+  };
+}
+
+async function loadPostedProjects() {
+  try {
+    const stored = await readState("posted-projects");
+    const placed = [];
+    for (const item of Array.isArray(stored) ? stored : []) {
+      const project = placePostedProject(item, [...projects, ...placed]);
+      const taken = [...projects, ...placed].some((existing) => existing.id === project?.id || existing.title.toLowerCase() === project?.title.toLowerCase());
+      if (project && !taken) placed.push(project);
+    }
+    postedProjects = placed;
+  } catch {
+    postedProjects = [];
+  }
+  renderProjects();
+}
+
+function setupPostNeedForm() {
+  document.querySelector("#need-venue").innerHTML =
+    '<option value="">Choose a public venue</option>' +
+    communityVenues
+      .map((venue) => `<option value="${escapeHTML(venue.id)}">${escapeHTML(venue.name)} (${escapeHTML(venue.type)}, ${escapeHTML(venue.area)})</option>`)
+      .join("");
+  document.querySelector("#need-skills").innerHTML = skillNames
+    .map((skill) => `<label><input type="checkbox" name="skill" value="${escapeHTML(skill)}" /> ${escapeHTML(skill)}</label>`)
+    .join("");
+  document.querySelector("#post-need-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const error = document.querySelector("#post-need-error");
+    const data = new FormData(form);
+    const item = {
+      id: `posted-${Date.now().toString(36)}`,
+      title: String(data.get("title") ?? ""),
+      venueId: String(data.get("venue") ?? ""),
+      description: String(data.get("description") ?? ""),
+      time: String(data.get("time") ?? ""),
+      skills: data.getAll("skill").map(String),
+    };
+    if (!item.skills.length) {
+      error.textContent = "Choose at least one skill this project builds.";
+      return;
+    }
+    if (catalog().some((project) => project.title.toLowerCase() === item.title.trim().toLowerCase())) {
+      error.textContent = "A project with this title already exists. Choose a different title.";
+      return;
+    }
+    const project = placePostedProject(item, catalog());
+    if (!project) {
+      error.textContent = "Add a title, a public venue, a description and at least one skill.";
+      return;
+    }
+    const stored = postedProjects.map(({ id, title, venueId, description, time, skills }) => ({ id, title, venueId, description, time, skills }));
+    let saved = false;
+    if (database) {
+      try {
+        await writeState("posted-projects", [...stored, item]);
+        saved = true;
+      } catch { /* keep it for this visit only */ }
+    }
+    postedProjects = [...postedProjects, project];
+    error.textContent = saved ? "" : "Posted for this visit only: browser storage is unavailable.";
+    form.reset();
+    renderProjects();
+    explore.select(project.id, "post");
+    explore.highlight(project.id);
+    announce(`Posted example need: ${project.title}, at ${project.orgName}. ${saved ? "Saved in this browser." : "Not saved in this browser."}`);
+  });
+}
+
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 document.querySelector("#voice-button").addEventListener("click", () => {
@@ -789,7 +924,15 @@ document.querySelector("#voice-button").addEventListener("click", () => {
   }
 });
 
+const explore = createExplore({
+  getProjects: catalog,
+  escapeHTML,
+  announce,
+  skills: skillNames,
+  places: calgaryAreas, // "choose your area": a manual alternative to device location
+});
 renderProjects();
+setupPostNeedForm();
 showView(location.hash.slice(1) || "overview");
 initialize();
 loadJobPostings();
