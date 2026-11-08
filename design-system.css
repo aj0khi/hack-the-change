@@ -1,0 +1,272 @@
+/* Shared workspace visual system; loaded after feature styles. */
+:root {
+  --ink: #242331;
+  --muted: #625f70;
+  --blue: #51409a;
+  --blue-dark: #3e307d;
+  --green: #51409a;
+  --line: #e5e4eb;
+  --paper: #f7f7fa;
+  --surface: #fff;
+  --tint: #f3f1fa;
+  --tint-strong: #e9e5f6;
+}
+
+body {
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.55;
+}
+
+.sidebar {
+  background: #fff;
+  border-color: var(--line);
+  padding-top: 26px;
+}
+.brand-mark { background: var(--blue); border-radius: 11px; }
+.brand-mark span { color: #ded8f5; }
+.brand-name { color: var(--ink); letter-spacing: -.045em; }
+.brand-name small { color: #696678; font-size: .625rem; letter-spacing: .075em; }
+.workspace-label, .overline, .section-intro, .panel-kicker, .card-label {
+  color: #6d697c;
+  font-size: .6875rem;
+  letter-spacing: .075em;
+}
+.workspace-label { margin-top: 40px; }
+.workspace-label span { color: #777383; }
+.nav-link {
+  min-height: 44px;
+  height: auto;
+  color: #565366;
+  font-size: .8125rem;
+  line-height: 1.35;
+}
+.nav-link.active { background: #eeebf8; color: #3e307d; }
+.nav-link:hover { background: #f5f4f9; color: var(--ink); }
+.nav-count { background: #dfd9f1; color: #41327c; }
+.sidebar-note { background: #f7f6fa; border-color: var(--line); }
+.sidebar-note p span, .profile small { color: var(--muted); }
+.note-icon, .avatar { background: #ece9f6; color: #4a3b82; }
+.topbar { background: #fff; border-color: var(--line); }
+.breadcrumb { color: #6d697b; font-size: .6875rem; letter-spacing: .06em; }
+.breadcrumb strong { color: #393647; }
+.top-location { color: #625f70; }
+.demo-pill {
+  background: #f5f4f8;
+  border-color: #e4e2eb;
+  color: #575363;
+  font-size: .625rem;
+}
+.demo-pill span, .overline-dot { background: #7363b0; }
+.page-content { max-width: 1440px; padding-top: 26px; }
+.demo-notice {
+  align-items: flex-start;
+  background: #f3f1fa;
+  border-color: #e6e1f3;
+  color: #514b64;
+  font-size: .8125rem;
+  padding: 11px 14px;
+}
+.demo-notice svg { margin-top: 2px; }
+.page-heading { margin-bottom: 26px; }
+.page-heading h1 {
+  margin: 9px 0 7px;
+  color: var(--ink);
+  font: 800 clamp(1.75rem, 1.4rem + 1.1vw, 2.5rem)/1.16 var(--display);
+  letter-spacing: -.04em;
+}
+.page-heading p { color: var(--muted); font-size: .9375rem; }
+.wave, .title-spark { color: #786bb1; }
+.button {
+  min-height: 44px;
+  border-radius: 9px;
+  font-size: .8125rem;
+  letter-spacing: 0;
+  gap: 10px;
+}
+.button.primary { background: var(--blue); color: #fff; }
+.button.primary:hover { background: var(--blue-dark); }
+.button.subtle { background: #f0eef7; color: #443578; }
+.button.white { background: #fff; color: #443578; }
+.text-link { color: #4c3b93; font-size: .8125rem; }
+
+.journey {
+  grid-template-columns: minmax(190px, .75fr) minmax(0, 2fr);
+  gap: 24px;
+  padding: 22px 24px;
+  background: #fff;
+  border-color: var(--line);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(34, 30, 55, .025);
+}
+.journey-intro h2 {
+  max-width: 260px;
+  font: 700 1.125rem/1.35 var(--display);
+  letter-spacing: -.025em;
+}
+.journey-step { border-color: var(--line); }
+.journey-number { color: #6c5aa4; font-size: .75rem; }
+.journey-step strong { font-size: .8125rem; }
+.journey-step small { color: var(--muted); font-size: .75rem; }
+.journey-step > svg { color: #6e5ca4; }
+.dashboard-grid { gap: 20px; }
+.feature-panel {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+  min-height: 260px;
+  background: #eeeaf8;
+  border: 1px solid #e4def3;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.feature-copy { padding: clamp(24px, 2.6vw, 36px); }
+.feature-tag { color: #5e527d; font-size: .6875rem; letter-spacing: .07em; }
+.feature-copy h2 {
+  margin: 17px 0 10px;
+  color: #29243b;
+  font: 800 clamp(1.75rem, 1.45rem + 1vw, 2.375rem)/1.12 var(--display);
+  letter-spacing: -.04em;
+}
+.feature-copy h2 em { color: #62509a; font-style: normal; }
+.feature-copy p { color: #554f64; font-size: .875rem; line-height: 1.6; }
+.feature-photo::after { background: linear-gradient(90deg, rgba(238, 234, 248, .45), transparent 40%); }
+.feature-caption {
+  background: rgba(255, 255, 255, .94);
+  color: #50495d;
+  font-size: .625rem;
+  letter-spacing: .06em;
+}
+.section-title h2, .side-heading h2 {
+  color: var(--ink);
+  font: 750 1.25rem/1.3 var(--display);
+  letter-spacing: -.03em;
+}
+.project-card, .credential-mini, .credential-full,
+.lens-input, .lens-output, .vouch-form, .verification-panel, .badge-lookup,
+.employer-form-panel, .employer-results-panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(34, 30, 55, .035);
+}
+.project-card { padding: 18px; }
+.project-body h3 { color: var(--ink); font-size: .9375rem; }
+.project-body p, .credential-mini p, .project-meta { color: var(--muted); }
+.project-icon.peach, .project-icon.lilac, .project-icon.mint,
+.badge-symbol, .lens-icon, .how-symbol {
+  background: #efedf8;
+  color: #584896;
+}
+.project-arrow, .icon-button { border-color: var(--line); color: #514292; }
+.skill-chip, .skill-options label { background: #f2f0f8; color: #4c426a; }
+.skill-options label:has(input:checked) { background: #e5e0f4; color: #3c306d; }
+.how-strip, .lens-promo { background: #f0eef7; border-color: #e4e0ef; }
+.how-strip p, .lens-promo p, .lens-promo .overline { color: var(--muted); }
+.impact-panel {
+  padding: 24px;
+  background: #34304b;
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.impact-panel .panel-kicker, .impact-number span, .impact-panel > p,
+.impact-detail span { color: #dedbea; }
+.impact-panel .panel-kicker > span, .impact-detail svg { color: #c9c1ec; }
+.impact-number strong {
+  color: #fff;
+  font: 800 3.25rem/1 var(--display);
+  letter-spacing: -.05em;
+}
+.impact-detail strong { color: #fff; }
+.impact-rule { background: rgba(255, 255, 255, .2); }
+.explain-panel, .vouch-aside, .verification-aside {
+  background: #f0eef7;
+  border-color: #e4e0ef;
+}
+.explain-panel h2, .vouch-aside h2 {
+  font: 750 1.5rem/1.3 var(--display);
+  letter-spacing: -.025em;
+}
+.lens-input h2, .vouch-form h2, .verification-panel h2, .badge-lookup h2 {
+  font: 750 1.25rem/1.3 var(--display);
+  letter-spacing: -.025em;
+}
+.lens-input > p, .vouch-form > p, .verification-panel p, .badge-lookup p,
+.explain-panel p, .vouch-aside p, .verification-aside p { color: var(--muted); }
+.role-badge, .verified, .result-status { background: #efedf8; color: #483a7a; }
+.credential-quote, .dialog-detail { background: #f8f7fb; border-color: #aaa0cb; color: #4f4b5c; }
+.inline-note, .verification-status, .badge-result { background: #f2f0f8; border-color: #e2ddef; color: #514a64; }
+.lens-input textarea, .vouch-form textarea, .vouch-form input[type="text"],
+.vouch-form select, .verify-box textarea, .verification-panel form input,
+.verification-panel form textarea, .verification-panel form select,
+.badge-fields input, .badge-fields select, .job-picker select {
+  background: #fff;
+  border-color: #d7d5e0;
+  border-radius: 8px;
+  color: var(--ink);
+}
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible,
+select:focus-visible, summary:focus-visible {
+  outline: 3px solid #6653ae;
+  outline-offset: 3px;
+}
+dialog { border: 1px solid var(--line); border-radius: 14px; }
+dialog::backdrop { background: rgba(28, 25, 41, .7); }
+footer { color: #6c6879; }
+
+.employer-page { background: var(--paper); color: var(--ink); }
+.employer-header { background: #fff; border-color: var(--line); }
+.employer-workspace-link { border-color: var(--line); color: #443578; }
+.employer-main { max-width: 1280px; }
+.employer-hero h1 {
+  color: var(--ink);
+  font: 800 clamp(2rem, 1.5rem + 1.4vw, 2.75rem)/1.15 var(--display);
+  letter-spacing: -.04em;
+}
+.employer-hero p, .employer-section-heading p { color: var(--muted); }
+.employer-section-heading p, .employer-field .job-source,
+.employer-field .share-hint, .employer-empty-state p,
+.employer-disclaimer p, .employer-badge-lookup > summary small {
+  font-size: .8125rem;
+  line-height: 1.55;
+}
+.employer-privacy-note, .employer-review-note { font-size: .8125rem; }
+.employer-text-button, .employer-source-details > summary,
+.employer-disclaimer > summary { font-size: .8125rem; }
+.employer-requirements .result-desc { font-size: .8125rem; }
+.employer-hero .overline, .employer-results-heading .overline { color: #6d697c; }
+.employer-demo-badge { background: #f0eef7; border-color: #e2ddef; color: #4d4269; }
+.employer-section-heading h2, .employer-results-heading h2 { color: var(--ink); }
+.employer-step { background: #f0eef8; border-color: #e4e0ef; color: #51409a; }
+.employer-field > label { color: #565264; font-size: .6875rem; }
+.employer-field select, .employer-field textarea { border-color: #d7d5e0; color: var(--ink); }
+.employer-privacy-note, .employer-review-note { background: #f7f6fa; color: #5b5669; }
+.employer-empty-icon { background: #f2f0f8; border-color: #e7e3f0; color: #5d4b9e; }
+.employer-empty-state h3, .employer-candidate-heading h3 { color: var(--ink); }
+.employer-empty-state p, .employer-disclaimer p { color: var(--muted); }
+.employer-candidate { border-color: var(--line); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .button:not(:disabled):hover, .project-card:hover, .project-arrow:hover, .icon-button:hover {
+    transform: none;
+  }
+  .button:not(:disabled):hover { box-shadow: 0 3px 10px rgba(53, 42, 94, .12); }
+  .project-card:hover { border-color: #cfc8e3; box-shadow: 0 5px 16px rgba(34, 30, 55, .06); }
+}
+@media (max-width: 1100px) {
+  .journey { grid-template-columns: 1fr; gap: 16px; }
+  .journey-intro h2 { max-width: none; }
+}
+@media (max-width: 800px) {
+  .sidebar { padding-top: 14px; }
+  .workspace-label { margin-top: 0; }
+  .feature-panel { min-height: 230px; }
+}
+@media (max-width: 520px) {
+  .page-heading h1 { font-size: 1.75rem; }
+  .journey { padding: 18px; }
+  .feature-panel { grid-template-columns: 1fr; }
+  .feature-copy { padding: 24px; }
+  .feature-photo { min-height: 165px; }
+  .feature-photo::after { background: linear-gradient(180deg, rgba(238, 234, 248, .3), transparent 50%); }
+  .employer-hero h1 { font-size: 2rem; }
+}

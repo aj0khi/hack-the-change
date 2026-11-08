@@ -43,7 +43,16 @@ test('entry file listens when imported by a hosting wrapper', { timeout: 5000 },
     assert.deepEqual(await health.json(), { status: 'ok' });
     const home = await fetch(`http://127.0.0.1:${port}/`);
     assert.equal(home.status, 200);
-    assert.match(await home.text(), /Proofly/);
+    const homeHtml = await home.text();
+    assert.match(homeHtml, /Proofly/);
+    assert.match(homeHtml, /href="design-system\.css"/);
+    const employer = await fetch(`http://127.0.0.1:${port}/employer`);
+    assert.equal(employer.status, 200);
+    assert.match(await employer.text(), /href="\/design-system\.css"/);
+    const stylesheet = await fetch(`http://127.0.0.1:${port}/design-system.css`);
+    assert.equal(stylesheet.status, 200);
+    assert.match(stylesheet.headers.get('content-type'), /text\/css/);
+    assert.match(await stylesheet.text(), /--ink:/);
   } finally {
     lines.close();
     if (child.exitCode === null && child.signalCode === null) {

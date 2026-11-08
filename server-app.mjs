@@ -25,6 +25,7 @@ const STATIC_FILES = {
   '/lens/employer-job-samples.mjs': 'lens/employer-job-samples.mjs',
   '/lens/job-example.mjs': 'lens/job-example.mjs',
   '/styles.css': 'styles.css',
+  '/design-system.css': 'design-system.css',
   '/robots.txt': 'robots.txt',
   '/proofly-share-preview.png': 'proofly-share-preview.png',
   '/app.js': 'app.js',
